@@ -1,0 +1,9 @@
+version: 2
+models:
+- name: int_order_fulfillment
+  description: '{{ doc("int_order_fulfillment") }}'
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null

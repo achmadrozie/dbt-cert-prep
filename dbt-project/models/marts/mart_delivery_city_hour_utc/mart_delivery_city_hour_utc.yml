@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: mart_delivery_city_hour_utc
+    description: '{{ doc("mart_delivery_city_hour_utc") }}'
+    columns:
+      - name: order_hour_utc
+        description: '{{ doc("mart_delivery_city_hour_utc_order_hour_utc") }}'
+        data_tests:
+          - not_null
+      - name: city
+        description: '{{ doc("mart_delivery_city_hour_utc_city") }}'
+      - name: delivered_order_count
+        description: '{{ doc("mart_delivery_city_hour_utc_delivered_order_count") }}'
+        data_tests:
+          - not_null
+      - name: delivery_time_sum_min
+        description: '{{ doc("mart_delivery_city_hour_utc_delivery_time_sum_min") }}'
+        data_tests:
+          - not_null
+      - name: delivery_time_observation_count
+        description: '{{ doc("mart_delivery_city_hour_utc_delivery_time_observation_count") }}'
+        data_tests:
+          - not_null

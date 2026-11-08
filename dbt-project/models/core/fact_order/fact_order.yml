@@ -1,0 +1,160 @@
+version: 2
+
+models:
+  - name: fact_order
+    description: '{{ doc("fact_order") }}'
+    columns:
+      - name: order_id
+        description: '{{ doc("fact_order_order_id") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: order_timestamp
+        description: '{{ doc("fact_order_order_timestamp") }}'
+        data_tests:
+          - not_null
+      - name: order_date
+        description: '{{ doc("fact_order_order_date") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: customer_id
+        description: '{{ doc("fact_order_customer_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+      - name: restaurant_id
+        description: '{{ doc("fact_order_restaurant_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_restaurant')
+                field: restaurant_id
+      - name: city
+        description: '{{ doc("fact_order_city") }}'
+      - name: cuisine
+        description: '{{ doc("fact_order_cuisine") }}'
+      - name: currency
+        description: '{{ doc("fact_order_currency") }}'
+      - name: payment_method
+        description: '{{ doc("fact_order_payment_method") }}'
+      - name: order_status
+        description: '{{ doc("fact_order_order_status") }}'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Delivered', 'Cancelled', 'Refunded']
+      - name: is_delivered
+        description: '{{ doc("fact_order_is_delivered") }}'
+      - name: is_cancelled
+        description: '{{ doc("fact_order_is_cancelled") }}'
+      - name: is_refunded
+        description: '{{ doc("fact_order_is_refunded") }}'
+      - name: order_hour
+        description: '{{ doc("fact_order_order_hour") }}'
+      - name: items_count
+        description: '{{ doc("fact_order_items_count") }}'
+      - name: sales_qty
+        description: '{{ doc("fact_order_sales_qty") }}'
+      - name: item_line_count
+        description: '{{ doc("fact_order_rollup_item_line_count") }}'
+      - name: item_quantity
+        description: '{{ doc("fact_order_rollup_item_quantity") }}'
+      - name: distinct_food_count
+        description: '{{ doc("fact_order_rollup_distinct_food_count") }}'
+      - name: subtotal
+        description: '{{ doc("fact_order_subtotal") }}'
+      - name: discount
+        description: '{{ doc("fact_order_discount") }}'
+      - name: delivery_fee
+        description: '{{ doc("fact_order_delivery_fee") }}'
+      - name: gst
+        description: '{{ doc("fact_order_gst") }}'
+      - name: sales_amount
+        description: '{{ doc("fact_order_sales_amount") }}'
+      - name: calculated_sales_amount
+        description: '{{ doc("fact_order_calculated_sales_amount") }}'
+      - name: sales_amount_delta
+        description: '{{ doc("fact_order_sales_amount_delta") }}'
+      - name: delivered_sales_amount
+        description: '{{ doc("fact_order_delivered_sales_amount") }}'
+      - name: item_line_amount
+        description: '{{ doc("fact_order_rollup_item_line_amount") }}'
+      - name: calculated_item_amount
+        description: '{{ doc("fact_order_rollup_calculated_item_amount") }}'
+      - name: item_amount_delta
+        description: '{{ doc("fact_order_rollup_item_amount_delta") }}'
+      - name: customer_rating
+        description: '{{ doc("fact_order_customer_rating") }}'
+      - name: delivery_time_min
+        description: '{{ doc("fact_order_delivery_time_min") }}'
+
+semantic_models:
+  - name: fact_order
+    description: Order measures and dimensions at one row per order.
+    model: ref('fact_order')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order_id
+        type: primary
+        expr: order_id
+      - name: customer_id
+        type: foreign
+        expr: customer_id
+      - name: restaurant_id
+        type: foreign
+        expr: restaurant_id
+      - name: calendar_date
+        type: foreign
+        expr: order_date
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: city
+        type: categorical
+      - name: cuisine
+        type: categorical
+      - name: currency
+        type: categorical
+      - name: order_status
+        type: categorical
+      - name: payment_method
+        type: categorical
+      - name: order_hour_source
+        type: categorical
+        expr: order_hour
+    measures:
+      - name: count_order_total
+        expr: order_id
+        agg: count
+      - name: count_order_delivered
+        expr: IFF(is_delivered, 1, 0)
+        agg: sum
+      - name: count_order_cancelled
+        expr: IFF(is_cancelled, 1, 0)
+        agg: sum
+      - name: count_order_refunded
+        expr: IFF(is_refunded, 1, 0)
+        agg: sum
+      - name: count_order_rated
+        expr: IFF(customer_rating IS NOT NULL, 1, 0)
+        agg: sum
+      - name: avg_delivery_time_min
+        expr: IFF(is_delivered, delivery_time_min, NULL)
+        agg: average
+      - name: avg_customer_rating
+        expr: customer_rating
+        agg: average
+      - name: gmv
+        expr: delivered_sales_amount
+        agg: sum

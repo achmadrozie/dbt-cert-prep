@@ -1,0 +1,7 @@
+metrics:
+  - name: total_ordered_quantity
+    description: '{{ doc("total_ordered_quantity") }}'
+    type: simple
+    label: Total Ordered Quantity
+    type_params:
+      measure: total_ordered_quantity

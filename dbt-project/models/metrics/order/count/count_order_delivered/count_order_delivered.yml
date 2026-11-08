@@ -1,0 +1,7 @@
+metrics:
+  - name: count_order_delivered
+    description: ' {{ doc("count_order_delivered") }}'
+    type: simple
+    label: Count Order Delivered
+    type_params:
+      measure: count_order_delivered

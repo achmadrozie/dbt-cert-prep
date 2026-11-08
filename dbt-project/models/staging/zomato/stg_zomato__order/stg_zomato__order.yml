@@ -1,0 +1,33 @@
+version: 2
+models:
+- name: stg_zomato__order
+  description: '{{ doc("stg_zomato__order") }}'
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: order_timestamp
+    description: Source wall-clock timestamp parsed as TIMESTAMP_NTZ; UTC is not assumed.
+    data_tests:
+    - not_null
+  - name: order_date
+    data_tests:
+    - not_null
+  - name: customer_id
+    data_tests:
+    - not_null
+  - name: restaurant_id
+    data_tests:
+    - not_null
+  - name: order_status
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - Delivered
+          - Cancelled
+          - Refunded
+  - name: sales_amount
+    data_tests:
+    - not_null

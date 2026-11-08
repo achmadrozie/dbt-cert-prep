@@ -1,0 +1,10 @@
+metrics:
+  - name: delivered_rate
+    description: '{{ doc("delivered_rate") }}'
+    type: derived
+    label: Delivered Rate
+    type_params:
+      expr: 100.0 * count_order_delivered / count_order_total
+      metrics:
+        - name: count_order_delivered
+        - name: count_order_total

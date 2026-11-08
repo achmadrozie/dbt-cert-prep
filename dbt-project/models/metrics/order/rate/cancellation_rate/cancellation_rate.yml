@@ -1,0 +1,10 @@
+metrics:
+  - name: cancellation_rate
+    description: '{{ doc("cancellation_rate") }}'
+    type: derived
+    label: Cancellation Rate
+    type_params:
+      expr: 100.0 * count_order_cancelled / count_order_total
+      metrics:
+        - name: count_order_cancelled
+        - name: count_order_total

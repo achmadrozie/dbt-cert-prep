@@ -1,0 +1,7 @@
+metrics:
+  - name: count_order_refunded
+    description: '{{ doc("count_order_refunded") }}'
+    type: simple
+    label: Count Order Refunded
+    type_params:
+      measure: count_order_refunded

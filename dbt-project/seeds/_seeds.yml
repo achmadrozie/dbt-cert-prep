@@ -1,0 +1,66 @@
+seeds:
+  - name: users
+    config:
+      column_types:
+        user_id: integer
+        age: integer
+        family_size: integer
+    columns:
+      - name: user_id
+        data_tests: [unique, not_null]
+
+  - name: restaurant
+    config:
+      column_types:
+        id: bigint
+        lic_no: varchar
+    columns:
+      - name: id
+        data_tests: [unique, not_null]
+
+  - name: food
+    columns:
+      - name: f_id
+        data_tests: [unique, not_null]
+
+  - name: menu
+    config:
+      column_types:
+        r_id: bigint
+        price: decimal(18,2)
+
+  - name: orders
+    config:
+      column_types:
+        order_id: bigint
+        order_timestamp: timestamp
+        order_date: date
+        user_id: integer
+        r_id: bigint
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+
+  - name: order_items
+    config:
+      column_types:
+        order_item_id: bigint
+        order_id: bigint
+        r_id: bigint
+        price: decimal(18,2)
+        line_amount: decimal(18,2)
+    columns:
+      - name: order_item_id
+        data_tests: [unique, not_null]
+
+  - name: reviews
+    config:
+      column_types:
+        review_id: bigint
+        order_id: bigint
+        user_id: integer
+        restaurant_id: bigint
+        review_date: date
+    columns:
+      - name: review_id
+        data_tests: [unique, not_null]

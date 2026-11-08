@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: dim_food
+    description: '{{ doc("dim_food") }}'
+    columns:
+      - name: food_id
+        description: '{{ doc("dim_food_food_id") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: food_name
+        description: '{{ doc("dim_food_food_name") }}'
+      - name: veg_or_non_veg
+        description: '{{ doc("dim_food_veg_or_non_veg") }}'
+
+semantic_models:
+  - name: dim_food
+    description: Food attributes at one row per food ID.
+    model: ref('dim_food')
+    entities:
+      - name: food_id
+        type: primary
+        expr: food_id
+    dimensions:
+      - name: food_name
+        type: categorical
+      - name: veg_or_non_veg
+        type: categorical

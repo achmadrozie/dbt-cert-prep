@@ -1,0 +1,8 @@
+metrics:
+  - name: aov
+    description: '{{ doc("aov") }}'
+    type: ratio
+    label: Average Order Value
+    type_params:
+      numerator: gmv
+      denominator: count_order_delivered

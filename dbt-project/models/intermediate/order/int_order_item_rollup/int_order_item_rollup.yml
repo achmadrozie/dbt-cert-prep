@@ -1,0 +1,11 @@
+version: 2
+models:
+- name: int_order_item_rollup
+  description: '{{ doc("int_order_item_rollup") }}'
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: item_amount_delta
+    description: Source line amount minus price times quantity, summed per order.

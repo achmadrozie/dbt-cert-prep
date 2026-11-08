@@ -1,0 +1,9 @@
+version: 2
+models:
+- name: stg_zomato__user
+  columns:
+  - name: customer_id
+    data_tests:
+    - unique
+    - not_null
+  description: '{{ doc("stg_zomato__user") }}'

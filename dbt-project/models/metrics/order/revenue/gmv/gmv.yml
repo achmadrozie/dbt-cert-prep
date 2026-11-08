@@ -1,0 +1,7 @@
+metrics:
+  - name: gmv
+    description: '{{ doc("gmv") }}'
+    type: simple
+    label: GMV (Gross Merchandise Value)
+    type_params:
+      measure: gmv

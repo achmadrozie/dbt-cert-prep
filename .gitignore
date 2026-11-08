@@ -1,0 +1,12 @@
+.DS_Store
+.env
+profiles.yml
+*.duckdb
+target/
+dbt_packages/
+logs/
+scratch/
+dbt-project/.user.yml
+dbt-project/seeds/*.csv
+dbt-project/dbtduckdb
+*.duckdb.wal

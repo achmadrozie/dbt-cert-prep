@@ -1,0 +1,8 @@
+metrics:
+  - name: ordered_quantity_per_order
+    description: '{{ doc("ordered_quantity_per_order") }}'
+    type: ratio
+    label: Ordered Quantity Per Order
+    type_params:
+      numerator: total_ordered_quantity
+      denominator: count_order_total

@@ -1,0 +1,98 @@
+version: 2
+
+models:
+  - name: fact_order_item
+    description: '{{ doc("fact_order_item") }}'
+    columns:
+      - name: order_item_id
+        description: '{{ doc("fact_order_item_order_item_id") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: '{{ doc("fact_order_item_order_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fact_order')
+                field: order_id
+      - name: restaurant_id
+        description: '{{ doc("fact_order_item_restaurant_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_restaurant')
+                field: restaurant_id
+      - name: food_id
+        description: '{{ doc("fact_order_item_food_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_food')
+                field: food_id
+      - name: order_ts
+        description: '{{ doc("fact_order_item_order_ts") }}'
+        data_tests:
+          - not_null
+      - name: order_date
+        description: '{{ doc("fact_order_item_order_date") }}'
+        data_tests:
+          - not_null
+      - name: city
+        description: '{{ doc("fact_order_item_city") }}'
+      - name: price
+        description: '{{ doc("fact_order_item_price") }}'
+      - name: quantity
+        description: '{{ doc("fact_order_item_quantity") }}'
+      - name: line_amount
+        description: '{{ doc("fact_order_item_line_amount") }}'
+      - name: calculated_line_amount
+        description: '{{ doc("fact_order_item_calculated_line_amount") }}'
+      - name: line_amount_delta
+        description: '{{ doc("fact_order_item_line_amount_delta") }}'
+
+semantic_models:
+  - name: fact_order_item
+    description: Item measures and dimensions at one row per order item.
+    model: ref('fact_order_item')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order_item_id
+        type: primary
+        expr: order_item_id
+      - name: order_id
+        type: foreign
+        expr: order_id
+      - name: food_id
+        type: foreign
+        expr: food_id
+      - name: restaurant_id
+        type: foreign
+        expr: restaurant_id
+      - name: calendar_date
+        type: foreign
+        expr: order_date
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: city
+        type: categorical
+    measures:
+      - name: count_order_item
+        description: Number of order-item rows.
+        expr: order_item_id
+        agg: count
+      - name: total_ordered_quantity
+        description: Sum of item quantities.
+        expr: quantity
+        agg: sum
+      - name: total_ordered_amount
+        description: Sum of source item line amounts.
+        expr: line_amount
+        agg: sum

@@ -1,0 +1,348 @@
+<title>dbt Island Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one A3-landscape sheet (1587 x 1123 px at 96dpi). Zones read left to right as the order of work: Build, Prove, Ship, Promise. */
+:root {
+  --bg: #e9eef0;
+  --sheet: #f7f9f9;
+  --ink: #14262e;
+  --muted: #546a73;
+  --line: #c9d5d9;
+  --build: #1f6a8a;
+  --prove: #a8650f;
+  --ship: #2d7650;
+  --promise: #7a4a8c;
+  --build-bg: #e2eff4;
+  --prove-bg: #f6ecdc;
+  --ship-bg: #e0efe6;
+  --promise-bg: #efe5f3;
+  --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1418; --sheet: #111d23; --ink: #e3edf0; --muted: #93a8b0; --line: #284049;
+    --build: #6cb8d8; --prove: #e0a24f; --ship: #6fc596; --promise: #c39bd6;
+    --build-bg: #14303c; --prove-bg: #33260f; --ship-bg: #14301f; --promise-bg: #2a1d33;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1418; --sheet: #111d23; --ink: #e3edf0; --muted: #93a8b0; --line: #284049;
+  --build: #6cb8d8; --prove: #e0a24f; --ship: #6fc596; --promise: #c39bd6;
+  --build-bg: #14303c; --prove-bg: #33260f; --ship-bg: #14301f; --promise-bg: #2a1d33;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 13px/1.42 var(--f-body);
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet {
+  max-width: 1587px; margin: 0 auto; background: var(--sheet);
+  border: 1px solid var(--line); padding: 24px 30px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+header { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+h1 { font: 700 34px/1 var(--f-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); max-width: 640px; margin: 6px 0 0; font-size: 14px; }
+.meta { font: 500 11px/1.5 var(--f-mono); color: var(--muted); text-align: right; letter-spacing: .04em; text-transform: uppercase; }
+.meta b { color: var(--ink); font-weight: 500; }
+
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); }
+.flow div {
+  font: 600 11px/1.3 var(--f-mono); letter-spacing: .06em; text-transform: uppercase;
+  padding: 7px 10px 7px 16px; color: var(--ink);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);
+}
+.flow div:first-child { clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%); padding-left: 10px; }
+.flow small { display: block; font: 400 11.5px/1.3 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.f-build { background: var(--build-bg); } .f-prove { background: var(--prove-bg); }
+.f-ship { background: var(--ship-bg); } .f-promise { background: var(--promise-bg); }
+
+.zone { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.isl {
+  --c: var(--build); --cbg: var(--build-bg);
+  border: 1px solid var(--line); border-top: 4px solid var(--c);
+  background: var(--sheet); padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; min-width: 0;
+}
+.isl.prove { --c: var(--prove); --cbg: var(--prove-bg); }
+.isl.ship { --c: var(--ship); --cbg: var(--ship-bg); }
+.isl.promise { --c: var(--promise); --cbg: var(--promise-bg); }
+.isl h2 { font: 700 16px/1.15 var(--f-display); margin: 0; color: var(--c); text-wrap: balance; }
+.top { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.lvl { flex: none; text-align: right; font: 500 10px/1 var(--f-mono); color: var(--muted); }
+.track { display: block; width: 58px; height: 5px; background: var(--line); margin-top: 4px; margin-left: auto; }
+.track i { display: block; height: 100%; background: var(--c); }
+.why { margin: 0; font-weight: 500; }
+.core { margin: 0; padding-left: 15px; }
+.core li { margin: 0 0 1px; padding-left: 1px; }
+.core li::marker { color: var(--c); }
+code { font: 400 11.5px var(--f-mono); background: var(--cbg, var(--build-bg)); padding: 0 3px; }
+.lab { font: 600 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--c); display: block; margin-bottom: 2px; }
+.blk { margin: 0; padding: 6px 8px; background: var(--cbg); }
+.blk p { margin: 0; }
+.qs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.q { font: 500 10.5px/1 var(--f-mono); padding: 3px 5px; border: 1px solid var(--ink); }
+.q.ok { background: var(--ink); color: var(--sheet); }
+.q.half { background: linear-gradient(100deg, var(--ink) 50%, transparent 50%); mix-blend-mode: normal; color: var(--sheet); text-shadow: 0 0 2px var(--ink); }
+.q.gap { border-style: dashed; border-color: var(--muted); color: var(--muted); }
+.q.none { border: 0; color: var(--muted); padding-left: 0; font-family: var(--f-body); font-size: 12px; }
+.foot { margin-top: auto; padding-top: 6px; border-top: 1px dashed var(--line); font: 400 11px/1.45 var(--f-mono); color: var(--muted); }
+.foot b { color: var(--ink); font-weight: 500; }
+
+.sec { font: 600 11px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 7px; }
+.box { border: 1px solid var(--line); padding: 10px 12px; min-width: 0; --c: var(--ink); --cbg: var(--build-bg); }
+.box p { margin: 0 0 4px; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+.facts dt { font: 500 11px var(--f-mono); color: var(--muted); }
+.facts dd { margin: 0; font-weight: 500; }
+
+.row3 { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 10px; }
+.sc { display: grid; grid-template-columns: 1fr 74px 94px; gap: 4px 10px; align-items: center; font-size: 12.5px; }
+.sc .h { font: 500 10px var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.bar { height: 7px; background: var(--line); }
+.bar i { display: block; height: 100%; background: var(--ink); }
+.sc .mod { font: 400 11px var(--f-mono); color: var(--muted); }
+.cmds { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.cmd { min-width: 0; }
+.cmd code { display: block; background: var(--build-bg); padding: 3px 6px; overflow-wrap: anywhere; font-size: 11px; }
+.cmd span { font-size: 12px; color: var(--muted); }
+.park { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.park span { font-size: 12px; border: 1px solid var(--line); padding: 1px 7px; color: var(--muted); }
+
+.tl { display: grid; grid-template-columns: 1.2fr 1.2fr 1.3fr 1.3fr 1fr 0.7fr; gap: 3px; }
+.tl div { padding: 8px 10px; font-size: 12px; line-height: 1.35; min-width: 0; }
+.tl b { display: block; font: 700 14px var(--f-display); }
+.tl span { display: block; font: 400 11px/1.4 var(--f-mono); color: var(--muted); }
+.t1, .t2 { background: var(--build-bg); } .t3 { background: var(--ship-bg); }
+.t4 { background: var(--promise-bg); } .t5 { background: var(--prove-bg); }
+.t6 { background: var(--ink); color: var(--sheet); } .t6 span { color: var(--sheet); opacity: .8; }
+.src { font: 400 10.5px/1.4 var(--f-mono); color: var(--muted); }
+
+@media (max-width: 1200px) {
+  .zone { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .row3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .sheet { padding: 18px; }
+  .zone { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr 1fr; gap: 4px; }
+  .flow div, .flow div:first-child { clip-path: none; padding-left: 10px; }
+  .tl { grid-template-columns: 1fr 1fr; }
+  .cmds { grid-template-columns: 1fr; }
+  .sc { grid-template-columns: 1fr 60px; }
+  .sc .mod { grid-column: 1 / -1; }
+  .meta { text-align: left; }
+}
+</style>
+
+<div class="sheet">
+  <header>
+    <div>
+      <h1>dbt Island Map</h1>
+      <p class="sub">Seven islands that make a pipeline production-grade. Each has a job, the things to know cold, the questions from your baseline that point at it, the proof to build, and a slot in the next four weeks.</p>
+    </div>
+    <div class="meta">Sat 7 Nov 2026<br>Exam <b>Mon 7 Dec</b><br>Levels from the 3 Nov assessment</div>
+  </header>
+
+  <div class="flow" aria-label="Order of work">
+    <div class="f-build">Build<small>make the data</small></div>
+    <div class="f-prove">Prove<small>know it is right</small></div>
+    <div class="f-ship">Ship<small>change it safely</small></div>
+    <div class="f-promise">Promise<small>keep the contract</small></div>
+  </div>
+
+  <section class="zone" aria-label="Build">
+    <article class="isl">
+      <div class="top"><h2>Modeling &amp; layering</h2><div class="lvl">4 / 5<span class="track"><i style="width:80%"></i></span></div></div>
+      <p class="why">Turn raw tables into trusted, reusable ones, each with one clear grain.</p>
+      <ul class="core">
+        <li>Layers <code>stg → int → core → marts</code> and what each may do</li>
+        <li>Grain: one row = one what; name marts by grain</li>
+        <li>Fact vs dimension</li>
+        <li><code>ref()</code> and <code>source()</code> build the DAG</li>
+        <li>YAML docs and doc blocks live next to the model</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>This is the comfortable island. Studying here feels productive and moves the exam score least.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p>Already in the repo: marts named by grain, grain and reconciliation tests.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q none">No question targeted this island</span></div></div>
+      <div class="foot"><b>Nov:</b> review only. Fix vocabulary gaps that practice tests expose. · Cert D1</div>
+    </article>
+
+    <article class="isl">
+      <div class="top"><h2>Materialization &amp; incremental</h2><div class="lvl">2.5–3<span class="track"><i style="width:55%"></i></span></div></div>
+      <p class="why">Choose cost and runtime against freshness, model by model.</p>
+      <ul class="core">
+        <li><code>view</code> · <code>table</code> · <code>ephemeral</code> · <code>incremental</code></li>
+        <li><code>is_incremental()</code> + <code>unique_key</code></li>
+        <li>Strategies: merge, delete+insert, append, insert_overwrite, microbatch</li>
+        <li>Lookback window for late data; <code>on_schema_change</code></li>
+        <li><code>--full-refresh</code>; <code>--empty</code> (is my SQL valid?) vs <code>--sample</code> (is the result sensible?)</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>Incremental is still a physical table. A 3-day lookback for 2-day-late events leaves 1 day of buffer, and <code>unique_key</code> + merge updates late rows instead of duplicating them.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p><code>fact_order</code> incremental with 3-day lookback. <code>audit_helper</code> shows 100% match against a full refresh. Before/after runtime table in <code>docs/incremental_proof.md</code>.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q ok">Q1 ✓</span><span class="q gap">Q2 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> M2, 16–19 Nov · Cert D1</div>
+    </article>
+
+    <article class="isl">
+      <div class="top"><h2>Snapshots (SCD2)</h2><div class="lvl">1.5<span class="track"><i style="width:30%"></i></span></div></div>
+      <p class="why">Dimensions change. Keep the history instead of overwriting it.</p>
+      <ul class="core">
+        <li><code>timestamp</code> strategy when <code>updated_at</code> can be trusted</li>
+        <li><code>check</code> strategy when it cannot: dbt compares column values</li>
+        <li><code>unique_key</code>, <code>dbt_valid_from</code>, <code>dbt_valid_to</code></li>
+        <li>Current row = the one with an open <code>valid_to</code></li>
+        <li>Hard deletes in the source</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>The <code>snapshots/</code> folder is empty in all three of your repos. This is a classic interview question and you have no evidence for it yet.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p>Snapshot <code>restaurant</code> into <code>dim_restaurant_scd2</code> with <code>valid_from</code> / <code>valid_to</code>. Change a row, run twice, show two versions.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q gap">Q3 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> M2, 16–19 Nov · Cert D1</div>
+    </article>
+
+    <article class="isl">
+      <div class="top"><h2>Jinja &amp; macros</h2><div class="lvl">2 / 5<span class="track"><i style="width:40%"></i></span></div></div>
+      <p class="why">Stop copy-pasting SQL. Turn a repeated pattern into one piece.</p>
+      <ul class="core">
+        <li><code>{{ }}</code> prints, <code>{% %}</code> controls</li>
+        <li><code>ref</code>, <code>source</code>, <code>config</code>, <code>var</code>, <code>target</code></li>
+        <li>Macros with arguments</li>
+        <li>A custom generic test is a macro: <code>{% test name(model, column_name) %}</code></li>
+        <li><code>target/compiled</code> = the SELECT; <code>target/run</code> = the full statement sent</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>Do not study this as its own topic. Learn it by writing the custom generic tests in M1: one exercise, two skills. A warehouse error means look in <code>run/</code>, not <code>compiled/</code>.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p><code>assert_non_negative</code> and <code>assert_sum_matches</code> used on 2+ models. You can say why this is a macro and not a singular test.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q gap">Q6 ✗</span><span class="q gap">Q11 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> inside M1, reused in M3 · Cert D3, D5<br><b>Read:</b> docs, “Writing custom generic data tests”</div>
+    </article>
+  </section>
+
+  <section class="zone" aria-label="Prove, Ship, Promise">
+    <article class="isl prove">
+      <div class="top"><h2>Testing</h2><div class="lvl">2.5 / 5<span class="track"><i style="width:50%"></i></span></div></div>
+      <p class="why">Check the logic before merge and the data before anyone reads it.</p>
+      <ul class="core">
+        <li>Order of defence: freshness → unit → data tests</li>
+        <li>Generic, singular and custom generic tests</li>
+        <li>Unit tests: <code>given</code> / <code>expect</code> for branching logic (CASE, window, date math)</li>
+        <li>Configs: <code>severity</code>, <code>warn_if</code> / <code>error_if</code>, <code>where</code>, <code>store_failures</code></li>
+        <li>Source freshness: <code>loaded_at_field</code>, <code>warn_after</code>, <code>error_after</code></li>
+        <li>In <code>dbt build</code>: a fail skips downstream, a warn does not</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>40 failing rows with <code>warn_if: ">0"</code> and <code>error_if: ">100"</code> is a WARN and downstream still builds. 150 rows is a FAIL and downstream is skipped. No unit tests for select, rename or pass-through.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p>2 unit tests on <code>int_order_financials</code> (discount &gt; subtotal, null fee), 2 custom generic tests, freshness in <code>_sources.yml</code>, <code>where</code> on a big fact, one deliberate red run, <code>docs/testing_strategy.md</code>.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q gap">Q10 ✗</span><span class="q gap">Q11 ✗</span><span class="q half">Q12 ½</span><span class="q gap">Q13 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> M1, 9–13 Nov · Cert D5, D6, D3<br><b>Read:</b> dbt Learn “Unit Testing”, “Advanced Testing”</div>
+    </article>
+
+    <article class="isl ship">
+      <div class="top"><h2>CI/CD &amp; state</h2><div class="lvl">1–1.5<span class="track"><i style="width:25%"></i></span></div></div>
+      <p class="why">Check every PR automatically without rebuilding everything.</p>
+      <ul class="core">
+        <li><code>manifest.json</code> from main is the comparison state</li>
+        <li><code>state:modified</code> = changed nodes only; <code>state:modified+</code> adds downstream</li>
+        <li><code>--defer</code>: unbuilt upstream <code>ref()</code> points at prod</li>
+        <li><code>dbt clone</code>: copy prod objects into your schema</li>
+        <li><code>dbt retry</code> resumes from the failed node</li>
+        <li>GitHub Actions, schema per PR (<code>pr_&lt;n&gt;</code>), SQLFluff, <code>--empty</code> dry run</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>Defer applies to upstream, not downstream. Pick clone when the object must physically exist in your schema: incremental models, or a BI tool pointing at dev.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p><code>ci.yml</code>: lint → <code>build --select state:modified+ --defer --empty</code> → real build into <code>pr_&lt;n&gt;</code>. A PR that goes red on a failing test, then green. Screenshot it.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q ok">Q7 ✓</span><span class="q gap">Q8 ✗</span><span class="q gap">Q9 ✗</span><span class="q half">Q15 ½</span><span class="q gap">Q16 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> M3, 20–26 Nov, CI on DuckDB · Cert D7, D4, D3<br><b>Read:</b> docs “About state”, “To defer or to clone”, “dbt retry”</div>
+    </article>
+
+    <article class="isl promise">
+      <div class="top"><h2>Governance</h2><div class="lvl">1 / 5<span class="track"><i style="width:20%"></i></span></div></div>
+      <p class="why">Give consumers a promise the shape will not change silently.</p>
+      <ul class="core">
+        <li>Contracts (<code>enforced</code>): shape is checked before data exists</li>
+        <li>Constraints on columns</li>
+        <li>Versions + <code>deprecation_date</code>; consumers move with <code>ref('m', v=2)</code></li>
+        <li>Access: private / protected / public; groups</li>
+        <li>Exposures: document consumers (dashboards, apps, ML); build and enforce nothing</li>
+      </ul>
+      <div class="blk"><span class="lab">Watch out</span><p>Renaming a column used by three teams in one go forces all of them to change together. Version it instead. A contract fails the build; a test checks data after it exists.</p></div>
+      <div class="blk"><span class="lab">Proof</span><p>Contract and constraints on <code>fact_order</code> and <code>fact_order_item</code>. <code>fact_order</code> v2 with v1 deprecated. Exposures for the Streamlit app and text-to-SQL. The build fails if a column type changes without a version bump.</p></div>
+      <div><span class="lab">Baseline</span><div class="qs"><span class="q gap">Q4 ✗</span><span class="q half">Q5 ½</span><span class="q gap">Q14 ✗</span></div></div>
+      <div class="foot"><b>Nov:</b> M4, 27 Nov – 1 Dec · Cert D2, D6<br><b>Read:</b> dbt Learn “dbt Mesh: Model Governance”</div>
+    </article>
+
+    <div class="box">
+      <h3 class="sec">The exam</h3>
+      <dl class="facts">
+        <dt>Format</dt><dd>65 questions, 2 hours</dd>
+        <dt>Pass</dt><dd>65% or more</dd>
+        <dt>Cost</dt><dd>$200 per attempt, retake pays again</dd>
+        <dt>Version</dt><dd>dbt Core 1.11 study guide</dd>
+        <dt>Mode</dt><dd>Online proctored, valid 2 years</dd>
+        <dt>Gate</dt><dd>Book only if practice tests hold at 75%+. Otherwise move it one week.</dd>
+        <dt>Day -2</dt><dd>Check camera, connection, room</dd>
+        <dt>Day -1</dt><dd>Nothing new. Sunday is off.</dd>
+        <dt>Unknown</dt><dd>Reschedule rules and retake wait. Check before booking.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="row3">
+    <div class="box">
+      <h3 class="sec">Baseline, 3 Nov: about 3.5 / 16</h3>
+      <div class="sc">
+        <span class="h">Domain</span><span class="h">Score</span><span class="h">Module</span>
+        <span>D1 Develop &amp; optimize</span><span class="bar"><i style="width:33%"></i></span><span class="mod">1/3 · M2</span>
+        <span>D2 Governance</span><span class="bar"><i style="width:25%"></i></span><span class="mod">0.5/2 · M4</span>
+        <span>D3 Debugging</span><span class="bar"><i style="width:50%"></i></span><span class="mod">1/2 · M1, M3</span>
+        <span>D4 Pipelines</span><span class="bar"><i style="width:0%"></i></span><span class="mod">0/2 · M3</span>
+        <span>D5 Testing</span><span class="bar"><i style="width:17%"></i></span><span class="mod">0.5/3 · M1</span>
+        <span>D6 External deps</span><span class="bar"><i style="width:0%"></i></span><span class="mod">0/2 · M1, M4</span>
+        <span>D7 State</span><span class="bar"><i style="width:25%"></i></span><span class="mod">0.5/2 · M3</span>
+      </div>
+      <p style="margin-top:8px;color:var(--muted)">No confident-but-wrong answers. Every gap has an address. Re-take the same 16 questions on 3 Dec.</p>
+    </div>
+
+    <div class="box">
+      <h3 class="sec">Commands to know without docs</h3>
+      <div class="cmds">
+        <div class="cmd"><code>dbt build</code><span>seed + run + snapshot + test in DAG order; failed test skips downstream</span></div>
+        <div class="cmd"><code>dbt test --select int_order_financials,test_type:unit</code><span>run only the unit tests of one model</span></div>
+        <div class="cmd"><code>dbt source freshness</code><span>needs <code>loaded_at_field</code> and <code>warn_after</code> / <code>error_after</code></span></div>
+        <div class="cmd"><code>dbt build --select state:modified+ --defer --state ./prod-artifacts</code><span>changed nodes and downstream; unbuilt upstream from prod</span></div>
+        <div class="cmd"><code>dbt retry</code><span>reads <code>run_results.json</code>; reruns failed and skipped nodes only</span></div>
+        <div class="cmd"><code>dbt clone --state ./prod-artifacts</code><span>copy prod objects into your schema</span></div>
+        <div class="cmd"><code>--empty</code> · <code>--sample</code> · <code>--full-refresh</code></div>
+        <div class="cmd"><code>--fail-fast</code> · <code>--warn-error</code><span>stop at first failure · warnings become errors</span></div>
+        <div class="cmd"><code>dbt ls --select +exposure:name</code><span>everything an exposure depends on</span></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h3 class="sec">Rhythm</h3>
+      <p>5 days × 6h: 4h core in the morning, 2h flex, stop by 15:00. Saturday light, Sunday off. No night compensation.</p>
+      <p>Tripwire, checked each Friday: under 7h sleep two days running, studying from panic, or the flex block skipped from exhaustion twice. Then drop to 4 days × 4–5h.</p>
+      <p>Stuck over 20 minutes on one error: paste it to the mentor.</p>
+      <h3 class="sec" style="margin-top:10px">Parked until after the exam</h3>
+      <div class="park"><span>Airflow reliability</span><span>Growth accounting</span><span>Snowflake cost &amp; RBAC</span><span>Semantic layer &amp; metrics (strong)</span><span>Experimentation</span><span>AI layer</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h3 class="sec">Next five weeks, one PR and one decision memo per module</h3>
+    <div class="tl">
+      <div class="t1"><b>M1 Testing</b><span>9–13 Nov</span><span>PR #1 · docs/testing_strategy.md</span></div>
+      <div class="t2"><b>M2 Incremental + snapshots</b><span>16–19 Nov</span><span>PR #2 · docs/incremental_proof.md</span></div>
+      <div class="t3"><b>M3 CI/CD + state</b><span>20–26 Nov</span><span>PR #3 · ci.yml, PR template</span></div>
+      <div class="t4"><b>M4 Governance</b><span>27 Nov – 1 Dec</span><span>PR #4 · contracts, v2, exposures</span></div>
+      <div class="t5"><b>Practice</b><span>3–5 Dec</span><span>Baseline re-take, 2–3 practice tests</span></div>
+      <div class="t6"><b>Exam</b><span>Mon 7 Dec</span></div>
+    </div>
+  </section>
+
+  <div class="src">Level bar = 0–5 skill level from the assessment. Baseline chips: filled = right, half = half right, dashed = blank. Cert D1–D7 = study guide domains as mapped in the M0 baseline. Sources: AE Readiness doc, M0 results, M1 action items, STATE.md.</div>
+</div>

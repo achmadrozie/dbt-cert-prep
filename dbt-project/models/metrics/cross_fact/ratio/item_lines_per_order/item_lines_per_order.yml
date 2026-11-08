@@ -1,0 +1,8 @@
+metrics:
+  - name: item_lines_per_order
+    description: '{{ doc("item_lines_per_order") }}'
+    type: ratio
+    label: Item Lines Per Order
+    type_params:
+      numerator: count_order_item
+      denominator: count_order_total

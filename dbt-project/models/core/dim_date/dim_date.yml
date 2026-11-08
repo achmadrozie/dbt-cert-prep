@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: '{{ doc("dim_date") }}'
+    columns:
+      - name: date_day
+        description: '{{ doc("dim_date_date_day") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        description: '{{ doc("dim_date_year") }}'
+      - name: month
+        description: '{{ doc("dim_date_month") }}'
+      - name: month_name
+        description: '{{ doc("dim_date_month_name") }}'
+      - name: day_name
+        description: '{{ doc("dim_date_day_name") }}'
+      - name: is_weekend
+        description: '{{ doc("dim_date_is_weekend") }}'
+
+semantic_models:
+  - name: dim_date
+    description: Calendar attributes at one row per source calendar date.
+    model: ref('dim_date')
+    entities:
+      - name: calendar_date
+        type: primary
+        expr: date_day
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+      - name: calendar_year
+        type: categorical
+        expr: year
+      - name: calendar_month
+        type: categorical
+        expr: month
+      - name: month_name
+        type: categorical
+      - name: day_name
+        type: categorical
+      - name: is_weekend
+        type: categorical

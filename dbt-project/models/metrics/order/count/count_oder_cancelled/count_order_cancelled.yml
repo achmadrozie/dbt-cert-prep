@@ -1,0 +1,7 @@
+metrics:
+  - name: count_order_cancelled
+    description: ' {{ doc("count_order_cancelled") }}'
+    type: simple
+    label: Count Order Cancelled
+    type_params:
+      measure: count_order_cancelled

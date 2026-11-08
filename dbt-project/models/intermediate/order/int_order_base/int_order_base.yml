@@ -1,0 +1,11 @@
+version: 2
+models:
+- name: int_order_base
+  description: '{{ doc("int_order_base") }}'
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: order_timestamp_source
+    description: Source timestamp with no verified timezone; it is not labeled UTC.

@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: dim_restaurant
+    description: '{{ doc("dim_restaurant") }}'
+    columns:
+      - name: restaurant_id
+        description: '{{ doc("dim_restaurant_restaurant_id") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: restaurant_name
+        description: '{{ doc("dim_restaurant_restaurant_name") }}'
+      - name: city
+        description: '{{ doc("dim_restaurant_city") }}'
+      - name: cuisine
+        description: '{{ doc("dim_restaurant_cuisine") }}'
+      - name: rating
+        description: '{{ doc("dim_restaurant_rating") }}'
+      - name: rating_count
+        description: '{{ doc("dim_restaurant_rating_count") }}'
+      - name: cost_for_two
+        description: '{{ doc("dim_restaurant_cost_for_two") }}'
+
+semantic_models:
+  - name: dim_restaurant
+    description: Restaurant attributes at one row per restaurant ID.
+    model: ref('dim_restaurant')
+    entities:
+      - name: restaurant_id
+        type: primary
+        expr: restaurant_id
+    dimensions:
+      - name: restaurant_name
+        type: categorical
+      - name: city
+        type: categorical
+      - name: cuisine
+        type: categorical
+      - name: rating
+        type: categorical
+      - name: cost_for_two
+        type: categorical

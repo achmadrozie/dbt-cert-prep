@@ -1,0 +1,8 @@
+version: 2
+models:
+- name: stg_zomato__food
+  columns:
+  - name: food_id
+    data_tests:
+    - not_null
+  description: '{{ doc("stg_zomato__food") }}'

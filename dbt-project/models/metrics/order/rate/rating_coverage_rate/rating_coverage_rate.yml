@@ -1,0 +1,10 @@
+metrics:
+  - name: rating_coverage_rate
+    description: '{{ doc("rating_coverage_rate") }}'
+    type: derived
+    label: Rating Coverage Rate
+    type_params:
+      expr: 100.0 * count_order_rated / count_order_total
+      metrics:
+        - name: count_order_rated
+        - name: count_order_total

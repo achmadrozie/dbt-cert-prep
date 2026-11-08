@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: mart_order_restaurant_currency_day_utc
+    description: '{{ doc("mart_order_restaurant_currency_day_utc") }}'
+    columns:
+      - name: order_date_utc
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_order_date_utc") }}'
+        data_tests:
+          - not_null
+      - name: restaurant_id
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_restaurant_id") }}'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_restaurant')
+                field: restaurant_id
+      - name: currency
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_currency") }}'
+        data_tests:
+          - not_null
+      - name: order_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_order_count") }}'
+        data_tests:
+          - not_null
+      - name: delivered_order_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_delivered_order_count") }}'
+        data_tests:
+          - not_null
+      - name: cancelled_order_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_cancelled_order_count") }}'
+        data_tests:
+          - not_null
+      - name: refunded_order_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_refunded_order_count") }}'
+        data_tests:
+          - not_null
+      - name: delivered_sales_amount
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_delivered_sales_amount") }}'
+      - name: customer_rating_sum
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_customer_rating_sum") }}'
+        data_tests:
+          - not_null
+      - name: customer_rating_observation_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_customer_rating_observation_count") }}'
+        data_tests:
+          - not_null
+      - name: delivery_time_sum_min
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_delivery_time_sum_min") }}'
+        data_tests:
+          - not_null
+      - name: delivery_time_observation_count
+        description: '{{ doc("mart_order_restaurant_currency_day_utc_delivery_time_observation_count") }}'
+        data_tests:
+          - not_null

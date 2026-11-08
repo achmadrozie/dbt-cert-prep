@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: mart_order_item_city_currency_day_utc
+    description: '{{ doc("mart_order_item_city_currency_day_utc") }}'
+    columns:
+      - name: order_date_utc
+        description: '{{ doc("mart_order_item_city_currency_day_utc_order_date_utc") }}'
+        data_tests:
+          - not_null
+      - name: city
+        description: '{{ doc("mart_order_item_city_currency_day_utc_city") }}'
+      - name: currency
+        description: '{{ doc("mart_order_item_city_currency_day_utc_currency") }}'
+        data_tests:
+          - not_null
+      - name: order_item_count
+        description: '{{ doc("mart_order_item_city_currency_day_utc_order_item_count") }}'
+        data_tests:
+          - not_null
+      - name: ordered_quantity
+        description: '{{ doc("mart_order_item_city_currency_day_utc_ordered_quantity") }}'
+      - name: source_line_amount
+        description: '{{ doc("mart_order_item_city_currency_day_utc_source_line_amount") }}'
+      - name: calculated_line_amount
+        description: '{{ doc("mart_order_item_city_currency_day_utc_calculated_line_amount") }}'
+      - name: line_amount_delta
+        description: '{{ doc("mart_order_item_city_currency_day_utc_line_amount_delta") }}'

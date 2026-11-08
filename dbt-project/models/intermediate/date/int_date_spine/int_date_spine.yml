@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: int_date_spine
+    description: '{{ doc("int_date_spine") }}'
+    columns:
+      - name: date_day
+        description: '{{ doc("int_date_spine_date_day") }}'
+        data_tests:
+          - unique
+          - not_null

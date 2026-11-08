@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: metricflow_time_spine
+    description: '{{ doc("metricflow_time_spine") }}'
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: Calendar date at daily grain.
+        granularity: day
+        data_tests:
+          - unique
+          - not_null

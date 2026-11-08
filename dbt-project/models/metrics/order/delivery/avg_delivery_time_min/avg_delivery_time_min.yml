@@ -1,0 +1,7 @@
+metrics:
+  - name: avg_delivery_time_min
+    description: '{{ doc("avg_delivery_time_min") }}'
+    type: simple
+    label: Avg Delivery Time Min
+    type_params:
+      measure: avg_delivery_time_min

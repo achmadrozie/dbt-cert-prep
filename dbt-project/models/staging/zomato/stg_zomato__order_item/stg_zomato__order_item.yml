@@ -1,0 +1,17 @@
+version: 2
+models:
+- name: stg_zomato__order_item
+  description: '{{ doc("stg_zomato__order_item") }}'
+  columns:
+  - name: order_item_id
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    data_tests:
+    - not_null
+  - name: f_id
+    description: Source food ID, retained as text for compatibility with the current
+      core model.
+    data_tests:
+    - not_null

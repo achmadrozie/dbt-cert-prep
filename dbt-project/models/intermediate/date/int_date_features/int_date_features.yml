@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: int_date_features
+    description: '{{ doc("int_date_features") }}'
+    columns:
+      - name: date_day
+        description: '{{ doc("int_date_features_date_day") }}'
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        description: '{{ doc("int_date_features_year") }}'
+      - name: month
+        description: '{{ doc("int_date_features_month") }}'
+      - name: month_name
+        description: '{{ doc("int_date_features_month_name") }}'
+      - name: day_name
+        description: '{{ doc("int_date_features_day_name") }}'
+      - name: is_weekend
+        description: '{{ doc("int_date_features_is_weekend") }}'

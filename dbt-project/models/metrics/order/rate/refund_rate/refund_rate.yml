@@ -1,0 +1,10 @@
+metrics:
+  - name: refund_rate
+    description: '{{ doc("refund_rate") }}'
+    type: derived
+    label: Refund Rate
+    type_params:
+      expr: 100.0 * count_order_refunded / count_order_total
+      metrics:
+        - name: count_order_refunded
+        - name: count_order_total

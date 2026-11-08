@@ -1,0 +1,7 @@
+metrics:
+  - name: count_order_rated
+    description: '{{ doc("count_order_rated") }}'
+    type: simple
+    label: Count Order Rated
+    type_params:
+      measure: count_order_rated

@@ -1,0 +1,8 @@
+metrics:
+  - name: avg_item_unit_price
+    description: '{{ doc("avg_item_unit_price") }}'
+    type: ratio
+    label: Avg Item Unit Price
+    type_params:
+      numerator: total_ordered_amount
+      denominator: total_ordered_quantity

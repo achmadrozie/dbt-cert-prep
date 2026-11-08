@@ -1,0 +1,11 @@
+version: 2
+models:
+- name: int_order_financials
+  description: '{{ doc("int_order_financials") }}'
+  columns:
+  - name: order_id
+    data_tests:
+    - unique
+    - not_null
+  - name: sales_amount_delta
+    description: Sales amount minus subtotal less discount plus delivery fee and GST.

@@ -1,0 +1,7 @@
+metrics:
+  - name: avg_customer_rating
+    description: '{{ doc("avg_customer_rating") }}'
+    type: simple
+    label: Avg Customer Rating
+    type_params:
+      measure: avg_customer_rating

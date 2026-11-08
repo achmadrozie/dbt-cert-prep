@@ -1,0 +1,12 @@
+
+target/
+dbt_packages/
+logs/
+.env
+dbt_internal_packages/
+seeds/*.csv
+*.duckdb
+*.duckdb.wal
+profiles.yml
+.user.yml
+dbtduckdb
