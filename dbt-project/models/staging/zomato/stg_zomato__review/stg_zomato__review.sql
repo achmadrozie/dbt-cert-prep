@@ -3,11 +3,11 @@ WITH source AS (
 )
 
 SELECT
-    TRY_TO_NUMBER(review_id) AS review_id
-    , TRY_TO_NUMBER(order_id) AS order_id
-    , TRY_TO_NUMBER(user_id) AS customer_id
-    , TRY_TO_NUMBER(restaurant_id) AS restaurant_id
-    , TRY_TO_DECIMAL(rating, 3, 1) AS rating
+    TRY_CAST(review_id AS BIGINT) AS review_id
+    , TRY_CAST(order_id AS BIGINT) AS order_id
+    , TRY_CAST(user_id AS BIGINT) AS customer_id
+    , TRY_CAST(restaurant_id AS BIGINT) AS restaurant_id
+    , TRY_CAST(rating AS DECIMAL(3, 1)) AS rating
     , TRIM(comment) AS comment
-    , TRY_TO_DATE(review_date) AS review_date
+    , TRY_CAST(review_date AS DATE) AS review_date
 FROM source

@@ -3,11 +3,11 @@ WITH source AS (
 )
 
 SELECT
-    TRY_TO_NUMBER(order_item_id) AS order_item_id
-    , TRY_TO_NUMBER(order_id) AS order_id
-    , TRY_TO_NUMBER(r_id) AS restaurant_id
+    TRY_CAST(order_item_id AS BIGINT) AS order_item_id
+    , TRY_CAST(order_id AS BIGINT) AS order_id
+    , TRY_CAST(r_id AS BIGINT) AS restaurant_id
     , TRIM(f_id) AS f_id
-    , TRY_TO_DECIMAL(price, 18, 2) AS price
-    , TRY_TO_NUMBER(quantity) AS quantity
-    , TRY_TO_DECIMAL(line_amount, 18, 2) AS line_amount
+    , TRY_CAST(price AS DECIMAL(18, 2)) AS price
+    , TRY_CAST(quantity AS BIGINT) AS quantity
+    , TRY_CAST(line_amount AS DECIMAL(18, 2)) AS line_amount
 FROM source

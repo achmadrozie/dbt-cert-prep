@@ -5,5 +5,5 @@ WITH source AS (
 SELECT
     TRIM(f_id) AS food_id
     , TRIM(item) AS food_name
-    , INITCAP(TRIM(veg_or_non_veg)) AS veg_or_non_veg
+    , TRIM(veg_or_non_veg) AS veg_or_non_veg
 FROM source
