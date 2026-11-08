@@ -27,7 +27,7 @@ seeds:
     config:
       column_types:
         r_id: bigint
-        price: decimal(18,2)
+        price: varchar
 
   - name: orders
     config:

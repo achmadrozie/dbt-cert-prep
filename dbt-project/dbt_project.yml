@@ -2,7 +2,7 @@
 # Name your project! Project names should contain only lowercase characters
 # and underscores. A good package name should reflect your organization's
 # name or the intended use of these models
-name: 'dbt-project'
+name: 'dbt_cert_prep'
 version: '1.0.0'
 
 # This setting configures which "profile" dbt uses for this project.
@@ -31,6 +31,12 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   dbt_cert_prep:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    core:
+      +materialized: table
     # Config indicated by + and applies to all files under models/example/
     example:
       +materialized: view
