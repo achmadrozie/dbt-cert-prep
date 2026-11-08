@@ -9,8 +9,8 @@ SELECT
     , oi.price
     , oi.quantity
     , oi.line_amount
-    , (oi.price * oi.quantity)::NUMBER(18, 2) AS calculated_line_amount
-    , (oi.line_amount - oi.price * oi.quantity)::NUMBER(18, 2) AS line_amount_delta
+    , TRY_CAST(oi.price * oi.quantity AS DECIMAL(18, 2)) AS calculated_line_amount
+    , TRY_CAST(oi.line_amount - oi.price * oi.quantity AS DECIMAL(18, 2)) AS line_amount_delta
 FROM {{ ref('stg_zomato__order_item') }} AS oi
 LEFT JOIN {{ ref('int_order_base') }} AS b
     ON oi.order_id = b.order_id

@@ -9,7 +9,7 @@ SELECT
     , SUM(delivered_sales_amount) AS delivered_sales_amount
     , COALESCE(SUM(customer_rating), 0) AS customer_rating_sum
     , COUNT(customer_rating) AS customer_rating_observation_count
-    , COALESCE(SUM(IFF(is_delivered, delivery_time_min, NULL)), 0) AS delivery_time_sum_min
-    , COUNT(IFF(is_delivered, delivery_time_min, NULL)) AS delivery_time_observation_count
+    , COALESCE(SUM(IF(is_delivered, delivery_time_min, NULL)), 0) AS delivery_time_sum_min
+    , COUNT(IF(is_delivered, delivery_time_min, NULL)) AS delivery_time_observation_count
 FROM {{ ref('fact_order') }}
 GROUP BY order_date, restaurant_id, currency
