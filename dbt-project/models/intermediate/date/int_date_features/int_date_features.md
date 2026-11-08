@@ -15,11 +15,11 @@ Calendar month number extracted from `date_day`, from 1 to 12.
 {% enddocs %}
 
 {% docs int_date_features_month_name %}
-Month name returned by Snowflake `MONTHNAME` for `date_day`.
+Three-letter month name for `date_day`.
 {% enddocs %}
 
 {% docs int_date_features_day_name %}
-Day name returned by Snowflake `DAYNAME` for `date_day`.
+Three-letter day name for `date_day`.
 {% enddocs %}
 
 {% docs int_date_features_is_weekend %}

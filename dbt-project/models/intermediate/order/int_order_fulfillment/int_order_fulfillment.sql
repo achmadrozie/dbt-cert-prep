@@ -6,6 +6,6 @@ SELECT
     , is_refunded
     , customer_rating
     , delivery_time_min
-    , IFF(is_delivered, delivery_time_min, NULL) AS delivered_time_min
-    , IFF(is_delivered, customer_rating, NULL) AS delivered_customer_rating
+    , IF(is_delivered, delivery_time_min, NULL) AS delivered_time_min
+    , IF(is_delivered, customer_rating, NULL) AS delivered_customer_rating
 FROM {{ ref('stg_zomato__order') }}
