@@ -38,40 +38,28 @@ Analogi dapur: freshness = cek bahan masuk; unit test = tes resep dengan bahan p
 
 ## 2. Repo dan asumsi (verifikasi dulu)
 
-Repo kerja: `zomato-dbt-layer-refactor` (atau fork `zomato-production-grade`). Ini asumsi dari sesi sebelumnya; konfirmasi dengan `ls`/`dbt ls` sebelum menulis apa pun:
-- model `int_order_financials`, mart `fact_order` / `fact_order_item`
-- `_sources.yml` sudah ada
-- ada 7 singular reconciliation test di `tests/`
-- versi dbt target: Core 1.11 (unit tests butuh ≥1.8)
+Repo kerja: `dbt-cert-prep/dbt-project/` (dbt Core 1.10.22 + DuckDB). Model `int_order_financials`, `fact_order`, dan `fact_order_item` sudah dimigrasikan. Input staging saat ini berasal dari seeds, bukan `_sources.yml`. Asumsi lama tentang source freshness dan 7 singular reconciliation test perlu dicek ulang saat sampai ke Loop C; jangan jadikan itu penghalang Loop A.
 
 Sintaks YAML di bawah hanyalah skeleton; **cek terhadap docs untuk versi dbt di repo** (konfigurasi freshness/test config bisa berada di blok `config:` pada versi terbaru).
 
 ## 3. Loop A — Unit test (hari 1–2)
 
-**Baca (≤20 menit):** dbt Learn *Unit Testing*; docs "Unit tests". Docs untuk dicari saat build, bukan dibaca tuntas.
+**Tujuan:** buktikan bahwa logika `int_order_financials` menghasilkan output yang disepakati untuk input yang sengaja kita pilih. Unit test menjalankan SQL model dengan beberapa baris **buatan** (`given`), lalu membandingkan hasilnya dengan **ekspektasi** (`expect`). Test merah berarti hasil SQL berbeda dari ekspektasi; cek apakah aturan bisnis, ekspektasi, atau SQL yang perlu dikoreksi. Edge case adalah cara memilih input yang kemungkinan membuka bug, bukan tujuan test itu sendiri.
 
-**Build:**
-1. Buka `int_order_financials`; tulis di kertas: kolom apa yang punya logic bercabang?
-2. Tulis 2 unit test di YAML:
-   - `discount > subtotal` (apa yang seharusnya terjadi pada net amount?)
-   - `fee` null
-3. Skeleton:
-```yaml
-unit_tests:
-  - name: test_int_order_financials_discount_exceeds_subtotal
-    model: int_order_financials
-    given:
-      - input: ref('<upstream_model>')
-        rows:
-          - {order_id: 1, <subtotal_col>: 100, <discount_col>: 150}
-    expect:
-      rows:
-        - {order_id: 1, <expected_cols...>}
-```
-4. Jalankan: `dbt test --select int_order_financials,test_type:unit`.
-5. **Sengaja rusakkan logic** sampai test merah, lihat diff output, lalu kembalikan.
+**Beda dari data test:** unit test memeriksa hubungan input → output tertentu tanpa mengandalkan isi DuckDB saat itu. Generic data test memeriksa aturan pada data model yang sudah dibangun; misalnya `unique` pada seluruh `order_id` yang benar-benar ada. Keduanya menjawab pertanyaan yang berbeda.
 
-**Selesai bila:** 2 unit test hijau; satu kali percobaan merah yang disengaja dan dipahami.
+**Baca (≤20 menit):** dbt Learn *Unit Testing*; docs "Unit tests". Cukup cari sintaks yang diperlukan saat menulis test.
+
+**Kerjakan satu kasus dulu (`discount > subtotal`):**
+1. Buka SQL `int_order_financials`. Catat kolom yang dibaca dari `stg_zomato__order` dan kolom output yang dihitung.
+2. Buat satu order di atas kertas. Tulis kalimat: “Jika input-nya X, output Y seharusnya Z, karena aturan bisnis ...”. Tentukan apakah diskon yang dibatasi, total akhir yang dibatasi, atau aturan lain. Jangan mengambil hasil SQL saat ini sebagai jawaban otomatis.
+3. Baru tulis unit test di `int_order_financials.yml`: `unit_tests:` berada di level teratas, sejajar dengan `models:`. `model` menunjuk ke `int_order_financials`; `given.input` menunjuk ke `ref('stg_zomato__order')`. Isi `given.rows` dengan seluruh kolom input yang dibaca SQL, dan `expect.rows` dengan output yang ingin dibuktikan. Jangan menyalin placeholder bertanda `<...>` sebagai nama kolom.
+4. Jalankan `dbt test --select int_order_financials,test_type:unit`. Jika merah, baca selisih actual vs expected dan jelaskan penyebabnya sebelum mengubah kode.
+5. Setelah hijau, **ubah satu nilai di `expect` menjadi salah dengan sengaja**, jalankan lagi sampai merah, pahami selisihnya, lalu kembalikan. Ini membuktikan test mampu mendeteksi hasil yang salah tanpa perlu merusak SQL model.
+
+**Kasus kedua (`delivery_fee` null):** ulangi urutan yang sama. Tentukan dulu apakah fee yang hilang seharusnya dianggap nol, menghasilkan NULL, atau mengikuti aturan bisnis lain. Tulis ekspektasinya sebelum menulis YAML.
+
+**Selesai bila:** dua unit test hijau, satu percobaan merah yang disengaja dan dipahami, serta aturan bisnis untuk kedua edge case bisa dijelaskan dengan kata sendiri.
 
 **Jelaskan balik (3–4 kalimat, tulis sendiri):** beda unit test vs data test; kapan unit test layak dan kapan tidak.
 
@@ -164,3 +152,45 @@ CI/CD & state (M3), governance (M4), Airflow (M5), growth accounting, Snowflake 
 - OMSA Spring 2027 (kelas mulai 11 Jan 2027; opsi diundur). Cert dbt ditarget sebelum 11 Jan, atau OMSA diundur. Bahas saat Rozie sudah lebih tenang.
 - Apakah "muak experimentation" itu capek/jenuh atau arah karier. M0–M2 jadi data awal; tidak ada kesimpulan sebelum itu.
 - Snowflake: trial vs akun baru; CI di M3 sebaiknya pakai DuckDB pada subset data.
+
+
+## Personal Response M1
+
+### Loop A 091126
+
+_beda unit test vs data test; kapan unit test layak dan kapan tidak_
+
+1. Loop A - beda unit test vs data test; kapan unit test layak dan kapan tidak
+   1. Unit Test ini lebih ke ketika kita pengen check output dari logic dari model kita sesuai dengan input kita / nggak
+      1. dimana kita perlu define sendiri input dan outputnya
+      2. Kapan model ini layak digunakan - semisal ada perhitungan kompleks within the model - ini ideal untuk kita gunakan sebelum value masuk ke downstream yang lebih jauh
+
+   2. While Data Test - dimana ini dibagi 2 - generic dan singular
+      1. generic ini ada 2 juga:
+         1. generic, built-in: unique, not null, accepted_values, relationship
+         2. generic, custom: sedangkan ini ketika kita bikin generic tapi based on our internal defined query 
+         3. sebenernya both generic diatas ini kuncinya lebih ke gimana kita bisa pake berkali-kali sih dari data test ini
+      2. Terakhir ada singular 
+         1. ini mirip sebenernya sama custom, generic - bedanya lebih specified untuk certain use case / model aja.
+      3. Kapan data test ini layak digunakan - ketika kita ingin menguji kebeneran suatu value/ combinedd -
+   3. In conclusion, what the difference between unit test and data test
+      1. dimana value -> data test, while logic -> unit test
+      FEEDBACK
+      2. The main difference is not limited on the value / logic check, but it's more than that. 
+        1. Unit test checks based on GIVEN INPUT AND OUTPUT
+        2. While data test checks based on ACTUAL DATA
+
+### Loop B 091126
+
+_Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja dan beda dari singular test._
+
+1. What does macro Jinja does there:
+  1. assert_non_negative(model, column_name) is similar with def function(var_a, var_b) on python.
+  2. the flow is:
+    1. assert_non_negative is defined on certain column.
+    2. dbt fill the render for each SQL based on certain model and column
+    3. then, the data test run
+  3. It's become reusable since there is a macro there {{ model}} or {{ column_name }} where dbt can replace later once SQL will be run for each column that attributed with the data test.
+2. Perbedaan mendasar between Generic, Custom Test dengan Singular Test
+  1. Custom, Generic - ini harapannya logic ini bisa diterapkan di banyak kondisi untuk menguji suatu value sesuai atau nggga. (Analogi: Generic means banyak, repateable usage.)
+  2. Singular test: misal untuk menguji apakah ada value yang dimana is_delivered is true, dan sub_discount nya negative (not expected) -> karna ini udah spesifik (penggunaannya) better langsung mengunakan singular test (analoginya dari kata SINGULAR, Single)
