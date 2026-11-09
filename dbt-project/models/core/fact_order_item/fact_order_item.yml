@@ -49,6 +49,11 @@ models:
         description: '{{ doc("fact_order_item_quantity") }}'
       - name: line_amount
         description: '{{ doc("fact_order_item_line_amount") }}'
+        data_tests:
+          - assert_sum_matches:
+              arguments:
+                compare_model: ref('int_order_item_rollup')
+                compare_column: item_line_amount
       - name: calculated_line_amount
         description: '{{ doc("fact_order_item_calculated_line_amount") }}'
       - name: line_amount_delta

@@ -7,5 +7,52 @@ models:
     data_tests:
     - unique
     - not_null
+    
+  - name: subtotal
+    data_tests: [assert_non_negative]
+
+  - name: discount
+    data_tests: [assert_non_negative]
+
+  - name: calculated_sales_amount
+    data_tests: [assert_non_negative]
+
   - name: sales_amount_delta
     description: Sales amount minus subtotal less discount plus delivery fee and GST.
+  
+unit_tests:
+  - name: test_int_order_financials_discount_exceeds_subtotal
+    model: int_order_financials
+    given:
+      - input: ref('stg_zomato__order')
+        rows:
+          - order_id: 1
+            subtotal: 100
+            discount: 150
+            delivery_fee: 0
+            gst: 0
+            sales_amount: 0
+            is_delivered: false
+    expect:
+      rows:
+        - order_id: 1
+          calculated_sales_amount: -50
+
+  - name: test_int_order_financials_delivery_fee_is_null
+    model: int_order_financials
+    given:
+      - input: ref('stg_zomato__order')
+        rows:
+          - order_id: 1
+            subtotal: 100
+            discount: 100
+            delivery_fee: null
+            gst: 0
+            sales_amount: 0
+            is_delivered: false
+    expect:
+      rows:
+        - order_id: 1
+          calculated_sales_amount: null
+
+
