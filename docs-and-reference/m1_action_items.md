@@ -217,6 +217,16 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
   7 days') -- DON'T FORGET TO SHOW THE FALSE (using >= instead of <= or <)
   - The SQL output is available on target/run/-<model>
 
+**YAML config example:**
+```yml
+- name: order_item_id
+  data_tests:
+    - not_null:
+        config:
+          where: "order_date >= date '2026-06-24' and order_date <= date '2026-06-30'"
+```
+This limits the test to that date range; PASS does not prove the range contains any orders.
+
 
 #### Loop C.2 — Warning and error thresholds
 
@@ -225,6 +235,18 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
 - **Warning experiment:** 1 failing rows → [observed status]; downstream model [built] with warn.
 - **Command:** dbt test -s +dim_restaurant
 - **What I learned:** The test counts failing results and compares that count with the configured thresholds. In `dbt build`, an error can cause dependent nodes to be skipped; a warning lets them continue.
+
+**YAML config example:**
+```yml
+- name: restaurant_id
+  data_tests:
+    - unique:
+        config:
+          severity: error
+          warn_if: ">=1"
+          error_if: ">3"
+```
+1–3 duplicated IDs → WARN; 4 or more → ERROR.
 
 #### C.3 — store_failures
 
@@ -236,6 +258,16 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
 - **Result:** This test reported `WARN 1`. Its audit table recorded `restaurant_id = 531342` with `n_records = 2`.
 - **What I learned:** The test counted one duplicated ID as one failure, even though the ID appeared in two rows.
 - **Cleanup:** [Record the result after removing the duplicate and rerunning the test.]
+
+**YAML config example:**
+```yml
+- name: restaurant_id
+  data_tests:
+    - unique:
+        config:
+          store_failures: true
+```
+dbt saves failing IDs to an audit table when this test runs.
 
 #### Loop C.4 — Source freshness
 
@@ -250,3 +282,27 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
   - A table can inherit (mewarisi tingkat diatasnya) the source-level rule, override it (specify lebih detail), or opt out (freshness: null).
   - Here the timestamps represent order/review dates, not when the CSV files were loaded.
   - example is here: [_sources.yml](../dbt-project/seeds/_sources.yml)
+
+**YAML config example (current `_sources.yml`):**
+```yml
+sources:
+  - name: zomato_seed
+    schema: main
+    config:
+      loaded_at_field: order_timestamp
+      freshness:
+        warn_after: {count: 1, period: day}
+        error_after: {count: 3, period: day}
+    tables:
+      - name: orders
+      - name: reviews
+        config:
+          loaded_at_field: cast(review_date as timestamp)
+          freshness:
+            warn_after: {count: 1, period: day}
+            error_after: {count: 3, period: day}
+      - name: users
+        config:
+          freshness: null
+```
+The current source-level ERROR threshold is 3 days; the WARN result recorded above came from an earlier run with a 180-day threshold.
