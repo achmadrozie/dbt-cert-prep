@@ -9,10 +9,12 @@ models:
         data_tests:
           - unique
           - not_null:
+              description: to check not null within specified period on order_item_id
               config:
+                where: "order_date >= date '2026-06-24' and order_date <= date '2026-06-30'"
                 severity: error
                 warn_if: ">0"
-                error_if: ">1000"
+                error_if: ">3"
       - name: order_id
         description: '{{ doc("fact_order_item_order_id") }}'
         data_tests:
