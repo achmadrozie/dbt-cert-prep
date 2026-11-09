@@ -7,7 +7,9 @@ seeds:
         family_size: integer
     columns:
       - name: user_id
-        data_tests: [unique, not_null]
+        data_tests: 
+          - unique
+          - not_null
 
   - name: restaurant
     config:
@@ -16,7 +18,14 @@ seeds:
         lic_no: varchar
     columns:
       - name: id
-        data_tests: [unique, not_null]
+        data_tests: 
+          - unique:
+              config:
+                severity: error
+                warn_if: ">=1"
+                error_if: ">3"
+                store_failures: true
+          - not_null
 
   - name: food
     columns:

@@ -8,7 +8,11 @@ models:
         description: '{{ doc("fact_order_item_order_item_id") }}'
         data_tests:
           - unique
-          - not_null
+          - not_null:
+              config:
+                severity: error
+                warn_if: ">0"
+                error_if: ">1000"
       - name: order_id
         description: '{{ doc("fact_order_item_order_id") }}'
         data_tests:

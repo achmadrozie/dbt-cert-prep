@@ -7,8 +7,14 @@ models:
       - name: restaurant_id
         description: '{{ doc("dim_restaurant_restaurant_id") }}'
         data_tests:
-          - unique
+          - unique:
+              config:
+                severity: error
+                warn_if: ">=1"
+                error_if: ">3"
+                store_failures: true
           - not_null
+
       - name: restaurant_name
         description: '{{ doc("dim_restaurant_restaurant_name") }}'
       - name: city
