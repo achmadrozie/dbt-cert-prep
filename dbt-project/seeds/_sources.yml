@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: zomato_seed
+    schema: main
+    config:
+      loaded_at_field: order_timestamp
+      freshness:
+        warn_after: {count: 1, period: day}
+        error_after: {count: 3, period: day} # 180 to check source freshness into warn instead of error
+
+    tables:
+      - name: orders # default logic, same as above
+      - name: reviews # more specific logic, skip more general logic
+        config:
+          loaded_at_field: cast(review_date as timestamp)
+          freshness:
+            warn_after: {count: 1, period: day}
+            error_after: {count: 3, period: day}
+      - name: users # more specific lofic, skip more general logic (negate)
+        config:
+          freshness: null
