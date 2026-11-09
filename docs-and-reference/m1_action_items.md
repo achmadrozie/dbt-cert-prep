@@ -194,3 +194,59 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
 2. Perbedaan mendasar between Generic, Custom Test dengan Singular Test
   1. Custom, Generic - ini harapannya logic ini bisa diterapkan di banyak kondisi untuk menguji suatu value sesuai atau nggga. (Analogi: Generic means banyak, repateable usage.)
   2. Singular test: misal untuk menguji apakah ada value yang dimana is_delivered is true, dan sub_discount nya negative (not expected) -> karna ini udah spesifik (penggunaannya) better langsung mengunakan singular test (analoginya dari kata SINGULAR, Single)
+
+### Loop C 091126
+#### Tasls
+1. Di test untuk fact besar: tambahkan where (mis. hanya N hari terakhir) agar tidak scan seluruh tabel
+2. Satu test dengan warn_if / error_if (mis. warn_if: ">0", error_if: ">100"), lalu buktikan: 40 baris gagal → WARN dan downstream tetap build; 150 baris → FAIL dan downstream SKIP (di dbt build).
+3. store_failures pada satu test; lihat tabel baris-gagalnya di warehouse.
+4. Tambah freshness di sources.yml (loaded_at_field + warn_after/error_after). Jalankan dbt source freshness._
+
+#### Output: 
+#### Loop C.1 — Add where for more specific test
+- **Test:** added where into `not_null` on `not_null_fact_order_item_order_item_id`
+- **Config:** `where order_date between "2026-06-24" and "2026-06-30"`
+- **Output:** 
+   - Test passed because no order_item_id was NULL among the rows selected by the date filter
+   - the output of the query is available on [target/run/dbt_cert_prep/models/core/fact_order_item/fact_order_item.yml](../dbt-project/target/run/dbt_cert_prep/models/core/fact_order_item/fact_order_item.yml/not_null_fact_order_item_order_item_id.sql)
+      - the query contained select order_item_id from (select * from "dbt"."main"."fact_order_item" where order_date >= date '2026-06-24' and order_date <= date '2026-06-30') dbt_subquery where order_item_id is null
+- **Command:** dbt test -s not_null_fact_order_item_order_item_id 
+- **What I learned:** 
+  - Even generic, built-in test can be configured/ specified (using WHERE)
+  - the production code should be guaranteed using dyanmic time range (e.g. last 3 days: where order_date >= current_date - 
+  7 days') -- DON'T FORGET TO SHOW THE FALSE (using >= instead of <= or <)
+  - The SQL output is available on target/run/-<model>
+
+
+#### Loop C.2 — Warning and error thresholds
+
+- **Test:** `unique_dim_restaurant_restaurant_id` and `unique_restaurant_id`
+- **Config:** `warn_if: >= 1`, `error_if: >3, store_failures: true`
+- **Warning experiment:** 1 failing rows → [observed status]; downstream model [built] with warn.
+- **Command:** dbt test -s +dim_restaurant
+- **What I learned:** The test counts failing results and compares that count with the configured thresholds. In `dbt build`, an error can cause dependent nodes to be skipped; a warning lets them continue.
+
+#### C.3 — store_failures
+
+- **Test:** `unique_dim_restaurant_restaurant_id`
+- **Experiment:** Intentionally duplicated `restaurant_id` 531342.
+- **Command:** 
+   - run the test: `dbt test -s +dim_restaurant`
+   - examine the failure output:   select * from "dbt"."main_dbt_test__audit"."unique_dim_restaurant_restaurant_id"
+- **Result:** This test reported `WARN 1`. Its audit table recorded `restaurant_id = 531342` with `n_records = 2`.
+- **What I learned:** The test counted one duplicated ID as one failure, even though the ID appeared in two rows.
+- **Cleanup:** [Record the result after removing the duplicate and rerunning the test.]
+
+#### Loop C.4 — Source freshness
+
+- **Source:** `zomato_seed`, pointing to tables created from seeds in DuckDB.
+- **Default rule:** Use `order_timestamp`; WARN after 1 day and ERROR after 180 days.
+- **`orders`:** Inherits the default rule. Result: **WARN**.
+- **`reviews`:** Overrides the time field with `cast(review_date as timestamp)` and sets ERROR after 3 days. Result: **ERROR STALE**.
+- **`users`:** Sets `freshness: null`, so dbt does not check it.
+- **Command:** `dbt source freshness`
+- **What I learned:**
+  - dbt compares the current time with the latest (`MAX`) timestamp on defined column (e.g. `ingested_at`) for each checked table. 
+  - A table can inherit (mewarisi tingkat diatasnya) the source-level rule, override it (specify lebih detail), or opt out (freshness: null).
+  - Here the timestamps represent order/review dates, not when the CSV files were loaded.
+  - example is here: [_sources.yml](../dbt-project/seeds/_sources.yml)
