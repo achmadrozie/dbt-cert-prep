@@ -16,7 +16,7 @@ sources:
           loaded_at_field: cast(review_date as timestamp)
           freshness:
             warn_after: {count: 1, period: day}
-            error_after: {count: 3, period: day}
-      - name: users # more specific lofic, skip more general logic (negate)
+            error_after: {count: 180, period: day}
+      - name: users # more specific logic, skip more general logic (negate)
         config:
           freshness: null
