@@ -196,7 +196,7 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
   2. Singular test: misal untuk menguji apakah ada value yang dimana is_delivered is true, dan sub_discount nya negative (not expected) -> karna ini udah spesifik (penggunaannya) better langsung mengunakan singular test (analoginya dari kata SINGULAR, Single)
 
 ### Loop C 091126
-#### Tasls
+#### Tasks
 1. Di test untuk fact besar: tambahkan where (mis. hanya N hari terakhir) agar tidak scan seluruh tabel
 2. Satu test dengan warn_if / error_if (mis. warn_if: ">0", error_if: ">100"), lalu buktikan: 40 baris gagal → WARN dan downstream tetap build; 150 baris → FAIL dan downstream SKIP (di dbt build).
 3. store_failures pada satu test; lihat tabel baris-gagalnya di warehouse.
@@ -205,17 +205,16 @@ _Rozie bisa menjelaskan kenapa ini (Loop B: Generic, Custom Test) macro Jinja da
 #### Output: 
 #### Loop C.1 — Add where for more specific test
 - **Test:** added where into `not_null` on `not_null_fact_order_item_order_item_id`
-- **Config:** `where order_date between "2026-06-24" and "2026-06-30"`
+- **Config:** `where: "order_date >= date '2026-06-24' and order_date <= date '2026-06-30'"`
 - **Output:** 
    - Test passed because no order_item_id was NULL among the rows selected by the date filter
-   - the output of the query is available on [target/run/dbt_cert_prep/models/core/fact_order_item/fact_order_item.yml](../dbt-project/target/run/dbt_cert_prep/models/core/fact_order_item/fact_order_item.yml/not_null_fact_order_item_order_item_id.sql)
+   - the compiled query is available in `dbt-project/target/run/.../not_null_fact_order_item_order_item_id.sql` after running the test
       - the query contained select order_item_id from (select * from "dbt"."main"."fact_order_item" where order_date >= date '2026-06-24' and order_date <= date '2026-06-30') dbt_subquery where order_item_id is null
 - **Command:** dbt test -s not_null_fact_order_item_order_item_id 
 - **What I learned:** 
   - Even generic, built-in test can be configured/ specified (using WHERE)
-  - the production code should be guaranteed using dyanmic time range (e.g. last 3 days: where order_date >= current_date - 
-  7 days') -- DON'T FORGET TO SHOW THE FALSE (using >= instead of <= or <)
-  - The SQL output is available on target/run/-<model>
+  - A dynamic recent-date window would make more sense for live data, but these historical seeds end in June 2026. A recent-date filter could select zero rows and still PASS.
+  - The current fixed date window is for this learning exercise; the filtered row count still needs checking before interpreting PASS.
 
 **YAML config example:**
 ```yml
@@ -232,8 +231,8 @@ This limits the test to that date range; PASS does not prove the range contains 
 
 - **Test:** `unique_dim_restaurant_restaurant_id` and `unique_restaurant_id`
 - **Config:** `warn_if: >= 1`, `error_if: >3, store_failures: true`
-- **Warning experiment:** 1 failing rows → [observed status]; downstream model [built] with warn.
-- **Command:** dbt test -s +dim_restaurant
+- **Warning experiment:** One duplicated `restaurant_id` produced `WARN 1` on both the seed and dimension `unique` tests. The earlier `dbt build -s +dim_restaurant` built `dim_restaurant`, but the overall build had three separate relationship-test failures (31, 73, and 31 rows).
+- **Command:** `dbt build -s +dim_restaurant`; `dbt test -s +dim_restaurant` to inspect the tests again.
 - **What I learned:** The test counts failing results and compares that count with the configured thresholds. In `dbt build`, an error can cause dependent nodes to be skipped; a warning lets them continue.
 
 **YAML config example:**
@@ -257,7 +256,7 @@ This limits the test to that date range; PASS does not prove the range contains 
    - examine the failure output:   select * from "dbt"."main_dbt_test__audit"."unique_dim_restaurant_restaurant_id"
 - **Result:** This test reported `WARN 1`. Its audit table recorded `restaurant_id = 531342` with `n_records = 2`.
 - **What I learned:** The test counted one duplicated ID as one failure, even though the ID appeared in two rows.
-- **Cleanup:** [Record the result after removing the duplicate and rerunning the test.]
+- **Cleanup:** The audit result above is from the deliberate duplicate. Confirm the seed is restored and rerun the relevant tests before treating the current data as clean.
 
 **YAML config example:**
 ```yml
@@ -272,16 +271,16 @@ dbt saves failing IDs to an audit table when this test runs.
 #### Loop C.4 — Source freshness
 
 - **Source:** `zomato_seed`, pointing to tables created from seeds in DuckDB.
-- **Default rule:** Use `order_timestamp`; WARN after 1 day and ERROR after 180 days.
-- **`orders`:** Inherits the default rule. Result: **WARN**.
-- **`reviews`:** Overrides the time field with `cast(review_date as timestamp)` and sets ERROR after 3 days. Result: **ERROR STALE**.
+- **Current source-level rule:** Use `order_timestamp`; WARN after 1 day and ERROR after 3 days.
+- **`orders`:** Inherits the source-level rule.
+- **`reviews`:** Overrides the time field with `cast(review_date as timestamp)` and sets ERROR after 180 days.
 - **`users`:** Sets `freshness: null`, so dbt does not check it.
 - **Command:** `dbt source freshness`
 - **What I learned:**
   - dbt compares the current time with the latest (`MAX`) timestamp on defined column (e.g. `ingested_at`) for each checked table. 
   - A table can inherit (mewarisi tingkat diatasnya) the source-level rule, override it (specify lebih detail), or opt out (freshness: null).
   - Here the timestamps represent order/review dates, not when the CSV files were loaded.
-  - example is here: [_sources.yml](../dbt-project/seeds/_sources.yml)
+  - example is here: [_sources.yml](../../dbt-project/seeds/_sources.yml)
 
 **YAML config example (current `_sources.yml`):**
 ```yml
@@ -300,9 +299,27 @@ sources:
           loaded_at_field: cast(review_date as timestamp)
           freshness:
             warn_after: {count: 1, period: day}
-            error_after: {count: 3, period: day}
+            error_after: {count: 180, period: day}
       - name: users
         config:
           freshness: null
 ```
-The current source-level ERROR threshold is 3 days; the WARN result recorded above came from an earlier run with a 180-day threshold.
+The earlier WARN/ERROR notes were from a different threshold configuration. The current settings above have not been revalidated in this document; rerun `dbt source freshness` before recording the current result. Here, order and review timestamps describe event time, not when CSVs were loaded, so this is a freshness-config exercise rather than an ingestion SLA.
+
+### Loop D — Testing strategy
+
+- Draft: [_testing_strategy.md](_testing_strategy.md). It records test choices by layer, what I intentionally do not test, and lessons from deliberate failures.
+- Before PR #1: decide whether to keep the draft in this learning folder or publish it at `docs/testing_strategy.md` as required by the original M1 checklist; make the references consistent.
+
+### Personal check — 12 Nov 2026
+
+- **Quiz:** 6/7 multiple-choice answers correct. The miss was `FAIL` vs `ERROR`: a test that runs and finds violating rows can report FAIL; `ERROR` means its SQL could not run. `warn_if` / `error_if` decide the severity of *valid test results*, not whether the test can execute.
+- **Open answers (#8–#9):** I could connect risks to Bronze/Silver/Gold tests and explain that a warning lets dependent nodes continue while a failing test can skip them in `dbt build`. A failed test does not undo the model already built; unrelated nodes can still run.
+- **Gap to revisit (#8, #10):** `assert_non_negative` checks real rows for negative values; it does not prove the calculation itself is correct. A unit test with `given` / `expect` does that. A singular test also checks real data. Gold needs more than basic built-in tests when totals can disagree; `assert_sum_matches` is one example already in this project.
+- **Assessment:** Good grasp of test placement and config behavior. Revisit execution errors and the difference between logic tests, data tests, and reconciliation before claiming the M1 mental model is complete. The quiz is evidence of learning, not proof that the current repo build is green.
+
+### M1 close-out status
+
+- Implemented in the repo: two unit tests on `int_order_financials`, custom generic tests, a singular discount test, `where`, warning/error thresholds, `store_failures`, and a declared source-freshness exercise.
+- Observed: deliberate duplicate produced `WARN 1` and an audit row; `dbt build -s +dim_restaurant` also exposed unrelated relationship failures.
+- Still to verify before calling M1 complete: current freshness output, cleanup of deliberate test data, final testing-strategy location, and the PR/merge outcome. A current all-green `dbt test` or `dbt build` result is not recorded here.
