@@ -2,24 +2,6 @@
 
 Periode: Minggu 1–2 (mulai 3 Nov 2026). Output: **PR #1** di repo + `docs/testing_strategy.md`.
 
-## 0. Cara kerja bareng Rozie (untuk Claude Code sebagai mentor)
-
-**Gaya belajar:** concept-first, example-driven, mentor-guided. Urutan penjelasan: masalah apa yang diselesaikan → posisi di workflow → analogi sederhana → contoh nyata dari repo → kapan dipakai / tidak → mini exercise → validasi mental model. Jangan mulai dari definisi buku atau dump dokumentasi.
-
-**Loop belajar tiap konsep:** (1) Rozie coba/tulis sendiri dulu, (2) dia jelaskan dengan kata sendiri, (3) mentor koreksi pakai format: *yang sudah benar → yang agak salah → yang kurang → mental model yang benar → contoh → latihan berikutnya*, (4) dia tes sendiri, (5) bukti disimpan di repo. Jangan tulis solusi penuh sebelum dia mencoba; jangan sekadar setuju kalau asumsinya salah.
-
-**Anti-overwhelm:** satu konsep, satu contoh, satu latihan. Jangan buka cabang lain (CI, governance, Airflow, AI/LLM, experimentation) sebelum M1 selesai. Kalau dia melompat topik, tarik balik ke M1.
-
-**Guardrail (dari preferensi dan konteks pemulihannya):**
-- Ritme: 4 hari immersion (Sen/Sel/Kam/Jum), ~3–4 jam, ≈16 jam/minggu. Rab/Sab opsional. **Minggu libur, tanpa "bayar utang".** Jangan naikkan ke 5×8 jam; dia baru recovery.
-- Heavy work berhenti setelah Maghrib. Tidak ada kompensasi malam.
-- Low-battery day: baca satu halaman docs modul, atau tidak sama sekali.
-- Jangan ambil keputusan besar saat dia capek/anxious/overwhelmed (termasuk soal OMSA dan arah karier); tunda.
-- Kalau dia belajar dari panik, marah ke diri sendiri, atau membandingkan diri dengan orang lain: bilang langsung.
-- Salah satu aturannya: macet > 20 menit di satu error → minta dia tempel error-nya ke mentor.
-- Experimentation/causal inference diparkir sampai M6 selesai.
-- Gaya bahasa: Indonesia-English santai, "gue/lu", gentle tapi direct. Gunakan Fact / Hypothesis / Unknown bila membantu.
-
 ## 1. Target M1
 
 **Problem:** test saat ini mengecek *bentuk* data, belum mengecek *logic*. Pertanyaan senior: "gimana lu tau transformasi ini benar sebelum di-merge?"
@@ -308,7 +290,7 @@ The earlier WARN/ERROR notes were from a different threshold configuration. The 
 
 ### Loop D — Testing strategy
 
-- Draft: [_testing_strategy.md](_testing_strategy.md). It records test choices by layer, what I intentionally do not test, and lessons from deliberate failures.
+- Draft: [m1_testing_strategy.md](m1_testing_strategy.md). It records test choices by layer, what I intentionally do not test, and lessons from deliberate failures.
 - Before PR #1: decide whether to keep the draft in this learning folder or publish it at `docs/testing_strategy.md` as required by the original M1 checklist; make the references consistent.
 
 ### Personal check — 12 Nov 2026
