@@ -287,6 +287,16 @@ For a plain `table` or `view`, `--full-refresh` changes almost nothing, because 
 - The data is event-style, and only recent rows change.
 - You have a reliable filter column and a unique key.
 
+No universal cutoff; compare runtime with run frequency and cost:
+
+| Per-model runtime | What to do |
+|---|---|
+| <1 min | Usually fine |
+| Several min | Investigate if frequent or dominating the pipeline |
+| >10 min | Investigate build cost and bottlenecks |
+
+Results can be checked on target/run_results.json
+ 
 **Do not upgrade** if the full rebuild is already fast. Incremental adds risk (stale rows, drifted logic) in exchange for speed you may not need.
 
 ### The common mistake
