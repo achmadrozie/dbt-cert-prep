@@ -1,3 +1,11 @@
+{{
+    config(
+        materialized = 'incremental'
+        , unique_key = 'order_id'
+        , incremental_strategy = 'merge'
+    )
+}}
+
 SELECT
     b.order_id
     , b.order_timestamp_source AS order_timestamp
