@@ -249,9 +249,12 @@ select * from {{ ref('stg_zomato__order') }}
 
 ```mermaid
 flowchart TD
-    S["dbt run on the model"] --> Q{"Table exists,<br/>no --full-refresh,<br/>configured incremental?"}
-    Q -->|"no"| F["is_incremental is false<br/>build all rows"]
-    Q -->|"yes"| N["is_incremental is true<br/>apply the filter,<br/>add or update rows"]
+    A["Incremental model"] --> R["dbt run"]
+    A --> FR["dbt run --full-refresh"]
+    R --> E{"Target table already exists?"}
+    E -->|"No: first run"| F["is_incremental() = false<br/>build all rows"]
+    E -->|"Yes"| N["is_incremental() = true<br/>apply your filter; merge returned rows"]
+    FR --> B["is_incremental() = false<br/>rebuild all rows from scratch"]
 ```
 
 Your notes mention "4 required conditions". The docs I checked list the three above. The fourth is **Unknown** to me; if you find it in the dbt Learn course, add it to your notes.
