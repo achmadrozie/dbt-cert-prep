@@ -344,7 +344,9 @@ The rule of thumb: **never set the lookback shorter than your latest real late d
 
 ### Microbatch: why and how
 
-**Why:** A single incremental query over a huge time-series table can be slow or hard to retry. Microbatch divides the work into independent time windows, so dbt can rerun a failed window or backfill a date range without rebuilding all history. It is useful when data volume justifies that extra machinery; it is not a faster default for a small model.
+**Mental model:** Ordinary incremental runs one query for rows selected by *your* `is_incremental()` filter, then applies a strategy such as `merge`. Microbatch is still `materialized='incremental'`, but dbt splits work by event time (hour/day/month), filters configured inputs, and processes each window separately. You do not need a row-level `unique_key` to define its time windows.
+
+**Why:** A single incremental query over a huge time-series table can be slow or hard to retry. Independent windows let dbt retry a failed batch or backfill a date range without rebuilding all history. Batches can run in parallel where supported. This is an operations benefit, not a guarantee of a cheaper normal run: multiple queries add overhead, and actual cost depends on the adapter and data layout.
 
 **How:** Set `event_time` (the event's time column), `begin` (start of history), and `batch_size` (`hour`, `day`, `month`, or `year`). With `batch_size='day'`, dbt runs a separate query for each day and writes that day's result to the target. You do **not** write an `is_incremental()` filter: dbt filters direct upstream `ref()`/`source()` inputs that also declare `event_time`. Without that upstream config, each batch may scan the whole input.
 
@@ -355,7 +357,23 @@ The rule of thumb: **never set the lookback shorter than your latest real late d
 | `batch_size` | `'day'` | Runs one query per day |
 | `lookback` | `3` | Reprocesses recent daily batches for late arrivals |
 
+```sql
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    event_time='event_occurred_at',
+    begin='2025-01-01',
+    batch_size='day',
+    lookback=3
+) }}
+select * from {{ ref('stg_events') }}
+```
+
+This is a generic example: `stg_events` also needs `event_time` configured for dbt to filter that input per batch. In **dbt-duckdb**, microbatch uses per-window `delete` + `insert`; `unique_key` is not supported for microbatch, so use `merge` for key-based upserts. The adapter says parallel batches are possible, but more concurrent batches are not necessarily faster on ordinary DuckDB tables. [dbt-duckdb strategy docs](https://github.com/duckdb/dbt-duckdb#incremental-strategy-configuration)
+
 **Example:** If an order from Monday arrives on Wednesday, reprocessing Monday's batch can include it. If it arrives after Monday falls outside the lookback, a normal run misses it; backfill that range with both `--event-time-start` and `--event-time-end`. This is still based on *event time*, not arrival time. A broad `--full-refresh` is not the usual repair tool for microbatch; dbt recommends targeted time-range backfills. For M2's `fact_order`, stick with `merge` so you can first learn and prove the row-level filter. [dbt microbatch docs](https://docs.getdbt.com/docs/build/incremental-microbatch)
+
+**Choose microbatch when** event time is reliable, the table is large, and time-range reprocessing is common. **Stay with `merge` or `table` when** the table is small, changes are naturally tracked by key rather than time, event time can change for an existing row, or upstream inputs cannot be filtered efficiently. For this project, DuckDB's microbatch cost and speed versus `merge` remain **unmeasured**.
 
 ### First: what does "schema" mean here?
 
