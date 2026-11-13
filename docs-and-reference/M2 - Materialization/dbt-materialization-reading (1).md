@@ -390,6 +390,25 @@ For an incremental `fact_order`, the same change plays out like this:
 
 The dangerous one is `ignore`: the default hides the change and your new column never reaches the table.
 
+### Then what, and how to solve (per setting)
+
+| Setting | Then what? | How to solve |
+|---|---|---|
+| `ignore` (default) | **Add a column:** not added to the table, the run succeeds, BI and downstream models lack the column and you notice late.<br>**Remove a column:** the run fails. | Set `on_schema_change` on purpose, then `dbt run --full-refresh --select model+` so the new column is filled.<br>For a removed column: full-refresh the model. |
+| `fail` | Every change makes the run **error** and the pipeline stops. Downstream models do not run. | Decide by hand. If the new column is wanted: full-refresh `model+`, or temporarily switch to `append_new_columns`, then switch back to `fail`. |
+| `append_new_columns` | **Add:** column added, old rows empty.<br>**Remove:** the old column stays, new rows are empty in it (dead columns pile up). | Fill old rows with `--full-refresh --select model+` or a manual update. Clean dead columns with a full refresh or a manual drop. |
+| `sync_all_columns` | **Add:** added, old rows empty.<br>**Remove:** the column is **dropped together with its data**. Types are adjusted too. | Check who uses a column before removing it from the model. Fill old rows with a full refresh. Keep a backup if the data matters, and use `fail` for critical models. |
+
+"Dead columns pile up" and "old rows empty" are Hypotheses from how tables work. The docs only say old columns are not removed and nothing is backfilled.
+
+**When to use which**
+- `ignore`: throwaway or dev models, or columns that truly never change. You accept silent misses.
+- `fail`: important marts and anything BI reads. Every column change needs a human decision.
+- `append_new_columns`: sources that keep gaining columns. Old rows stay empty for the new column.
+- `sync_all_columns`: the table must mirror the model exactly. You accept columns being dropped; on BigQuery, type changes cost a full table scan.
+
+**When it applies:** these settings act on a normal `dbt run`. A `--full-refresh` rebuilds the table from the current model, so there is nothing to reconcile (my reasoning from drop-and-rebuild, not a docs quote).
+
 ### Mitigation: a playbook
 
 1. **Choose the setting on purpose.** Do not live on the default for tables people depend on.
