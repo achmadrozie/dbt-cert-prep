@@ -433,6 +433,44 @@ The senior question is "how do you know the incremental model equals the full on
 
 Your notes end with the CI trick (`dbt clone` so the incremental model runs incrementally in a PR schema). That belongs to M3, not now. Keep the page, do not open the topic yet.
 
+### How the new column fills over time (lookback + `unique_key`)
+
+After you add a column, the table has two parts: old rows that stay empty, and rows processed since the change, which are filled. Rows re-read by the lookback window are replaced as a whole row, so they get the new column on the first run. The boundary between the two parts does not move until you run `--full-refresh`. A dashboard that uses the new column over a long period will look correct but cover only part of the rows (the empty values are a Hypothesis; the docs only say there is no backfill).
+
+### How often to full refresh (Fact: dbt best practices)
+
+- A common pattern for incremental models of manageable size is a full refresh weekly or monthly, at a low-activity time (for example the weekend), to reset drift from late-arriving data.
+- A longer lookback window means a less efficient model but slower drift. Drift never reaches zero: with a 3-day lookback, a record that arrives 4 days late is still missed.
+- To choose the frequency (Hypothesis, not a standard): measure how late data really arrives, set the business tolerance, set the lookback from those two, then compare incremental vs full refresh with `audit_helper`. If the difference is zero after a week, weekly is too often.
+- Very large tables: full refresh may take hours or cost a lot. Refresh rarely, or move to microbatch and backfill by date range.
+
+### `append_new_columns` vs `sync_all_columns`: the real trade-off
+
+| | `append_new_columns` | `sync_all_columns` |
+|---|---|---|
+| Model run fails? | No | No |
+| Column removed from the model | Old column stays (empty for new rows) | Column and its data are dropped |
+| Main risk | Dead columns pile up | Accidental data loss |
+| When it breaks | Almost never | Downstream models or dashboards that still read the dropped column |
+| Manual work | Check and clean dead columns | Almost none |
+
+Rule of thumb: rarely delete columns and many consumers (for example an OBT) → `append_new_columns`. Frequent cleanup and strict review → `sync_all_columns`. Critical table → `fail`.
+
+### Dead columns with `append_new_columns`
+
+- Data in the dropped column stays for old rows and is empty for new rows. Which rows count as "old" at the lookback boundary depends on the strategy: `delete+insert` likely blanks re-read rows; `merge` is Unknown. Test it before relying on it.
+- Finding dead columns (all Hypothesis, practical methods):
+  1. Build the model in a dev schema and compare its column list with prod (`information_schema.columns`).
+  2. `audit_helper.compare_relation_columns` shows columns only in A, only in B, or in both (README fact; DuckDB support is Unknown).
+  3. `select max(date_col) from t where the_column is not null` shows when a column stopped being filled.
+  4. Compare with the columns listed in `schema.yml`.
+- Cleaning: full refresh the model, or `alter table … drop column`. Check downstream readers first, and back up data you may need.
+- Prevention: when you remove a column from a model, note it in the PR and schedule a full refresh afterwards.
+
+### M2 experiment idea (small, DuckDB)
+
+Build an incremental model with `append_new_columns`, drop one column from the model, run again, and inspect rows inside and outside the lookback boundary. Write the result in `docs/incremental_proof.md`.
+
 ---
 
 ## Page 6 · Materialized view, the decision guide, and fixes to your notes
@@ -526,3 +564,15 @@ Questions 1 to 3 will tell us whether the mental model is stable before M2 build
 - [dbt docs: DuckDB configurations](https://docs.getdbt.com/reference/resource-configs/duckdb-configs)
 - Your Notion notes: DBT - Materialization (Nov 2025)
 - Items marked Hypothesis or Unknown were not verified; check them before relying on them.
+
+### Personal learning Notes/ interesting point
+1. dbt run --full-refresh itu sahabatannya sama is_incremental()
+    1. karna ketika kita bikin dbt run - dengan materialized = 'table', it means that we will rebuild the entire table anw. The benefit of incremental model would not be utilized once we use the table or build the table since the begining
+2. ephemeral vs view -> main difference is on would we show the model to the data warehouse or not.
+3. `on_schema_change`: reflection from my time at Bolt (Hypothesis, from memory)
+    1. I recall the team used `append_new_columns` or `sync_all_columns`. Leaning `append_new_columns` (about 60:40, unverified). I did not note the exact config
+    2. Clues for the lean: we rarely deleted columns, and unused columns were left in place (the model was an OBT with many consumers). The difference between the two settings only shows when a column is removed or its type changes, so these clues are weak evidence
+    3. I recall it was not `ignore` or `fail`
+    4. AE said running the full refresh later is fine, and I agreed. This matches the pattern: add the new column first, backfill old rows later with `--full-refresh`
+    5. Caveat: "safe" depends on table size; a full refresh of a large fact table can be slow and costly
+    6. Questions that would settle it if I remember: did a renamed column leave the old column behind (append) or remove it (sync)? Did a column type change apply without a full refresh (sync)?
