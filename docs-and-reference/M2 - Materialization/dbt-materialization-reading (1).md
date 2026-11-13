@@ -342,9 +342,20 @@ How to choose the window, in the words of your notes: analyze how late data actu
 
 The rule of thumb: **never set the lookback shorter than your latest real late data.**
 
-### Microbatch in one paragraph
+### Microbatch: why and how
 
-Instead of writing the `is_incremental()` filter yourself, you declare `event_time`, `begin` and `batch_size`, and dbt rebuilds each time slice on its own. `lookback` reprocesses N earlier batches for late data. Upstream models need an `event_time` too, or every batch scans them fully. One trap: `--full-refresh` alone does not reload a microbatch model; for backfills use `--event-time-start` and `--event-time-end`. Use it for very large time series with a trustworthy time column; skip it for small tables.
+**Why:** A single incremental query over a huge time-series table can be slow or hard to retry. Microbatch divides the work into independent time windows, so dbt can rerun a failed window or backfill a date range without rebuilding all history. It is useful when data volume justifies that extra machinery; it is not a faster default for a small model.
+
+**How:** Set `event_time` (the event's time column), `begin` (start of history), and `batch_size` (`hour`, `day`, `month`, or `year`). With `batch_size='day'`, dbt runs a separate query for each day and writes that day's result to the target. You do **not** write an `is_incremental()` filter: dbt filters direct upstream `ref()`/`source()` inputs that also declare `event_time`. Without that upstream config, each batch may scan the whole input.
+
+| Setting | Example | Effect |
+|---|---|---|
+| `event_time` | `order_timestamp` | Assigns each row to a time window |
+| `begin` | `'2024-01-01'` | Starts the initial history build here |
+| `batch_size` | `'day'` | Runs one query per day |
+| `lookback` | `3` | Reprocesses recent daily batches for late arrivals |
+
+**Example:** If an order from Monday arrives on Wednesday, reprocessing Monday's batch can include it. If it arrives after Monday falls outside the lookback, a normal run misses it; backfill that range with both `--event-time-start` and `--event-time-end`. This is still based on *event time*, not arrival time. A broad `--full-refresh` is not the usual repair tool for microbatch; dbt recommends targeted time-range backfills. For M2's `fact_order`, stick with `merge` so you can first learn and prove the row-level filter. [dbt microbatch docs](https://docs.getdbt.com/docs/build/incremental-microbatch)
 
 ### First: what does "schema" mean here?
 
