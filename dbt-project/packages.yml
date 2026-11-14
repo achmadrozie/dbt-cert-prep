@@ -1,0 +1,4 @@
+# packages.yml
+packages:
+  - package: dbt-labs/audit_helper
+    version: 0.14.0

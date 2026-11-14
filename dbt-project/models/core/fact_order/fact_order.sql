@@ -1,10 +1,4 @@
-{{
-    config(
-        materialized = 'incremental'
-        , unique_key = 'order_id'
-        , incremental_strategy = 'merge'
-    )
-}}
+{{ config(materialized='table') }}
 
 SELECT
     b.order_id
