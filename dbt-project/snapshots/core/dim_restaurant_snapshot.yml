@@ -1,0 +1,7 @@
+snapshots:
+  - name: dim_restaurant_scd2
+    relation: ref('dim_restaurant')
+    config:
+      unique_key: restaurant_id
+      strategy: check
+      check_cols: [restaurant_name, city, rating]

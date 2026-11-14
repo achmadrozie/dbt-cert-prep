@@ -2,6 +2,14 @@ version: 2
 
 models:
   - name: fact_order
+    latest_version: 2
+    versions:
+      - v : 2
+        defined_in: fact_order_v2
+        config:
+          alias: fact_order
+      - v : 1
+        defined_in: fact_order_v1
     description: '{{ doc("fact_order") }}'
     columns:
       - name: order_id
