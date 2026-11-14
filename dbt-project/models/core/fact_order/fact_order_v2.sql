@@ -3,6 +3,7 @@
         materialized = 'incremental'
         , unique_key = 'order_id'
         , incremental_strategy = 'merge'
+        , on_schema_change = 'append_new_columns'
     )
 }}
 
@@ -28,7 +29,7 @@ SELECT
     , i.distinct_food_count
     , f.subtotal
     , f.discount
-    -- , f.delivery_fee
+    , f.delivery_fee
     , f.gst
     , f.sales_amount
     , f.calculated_sales_amount
