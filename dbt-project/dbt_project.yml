@@ -36,7 +36,9 @@ models:
     intermediate:
       +materialized: view
     core:
-      +materialized: incremental
+      # Default is table. Only models that need it opt in to incremental
+      # in their own config() (e.g. fact_order_v2: unique_key + is_incremental filter).
+      +materialized: table
     marts:
       +materialized: table
     # Config indicated by + and applies to all files under models/example/

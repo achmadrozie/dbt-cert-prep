@@ -1,81 +1,106 @@
 # M2.0
 
-Recap | Learning notes regarding M2
+## Recap | Learning notes regarding M2
 
-## Materialization
+### Materialization
 - What? Materializatiom act as a strategy to develop and maintain our data warehouse storaging process
   1. Why I called it as a strategy? because through correct materialization - we can not only reduce the cost but also make the consumption layer is efficient
      1. we state all as a table - make our storage in data warehouse become costly - while when we state all models as a 'view' we can make the consumption layer not-effective (long time process)
      2. Here is the materialization come: we can make a strategy to achieve 2 condition in 1 way: effective (fast to be consumed in consumption layer) and efficient (cheap or cost effective - compared to above)
-  2. 5 strategies that available on materialization (primarily 2: table and view ):
-    1. Table
-        - Data is presenced into the warehouse,
-        - Exist on data warehouse (queryable) 
-        - Fit for consumption layer - fast to be conusumed (since the data was ready) - 
-        - Not fit for continuosly-growing data since the cost would get expensive along the time.
-    2. View
-        - Data is created every time once the model executed 
-        - Exist on data warehouse (queryable)
-        - Fit for upstream data warehouse layer
-    3. Ephemeral
-        - Data is created every time once the model executed
-        - The difference with the view is the output is not queryable / not available on data warehouse
-    4. Incemental
-        - Similar with table
-        - Exist on data warehouse (queryable)
-        - Fit for consumption layer (faster since the data was ready)
-        - Fit (cost effective compared to table) for continuously growing data such as event-data with late-data arrival conditions (e.g. last 3 or x days)
-        
-        - Some important part under incremental (I know it's part of incremental - but I only remember these 2)
-          1. **`materialized`**
-            - `merge`: we scan based on unique_key on certained period - then we update everything unique_key that exist there
-            - `upsert`: (insert + delete): we scan based on unique_key on certain period - then we delete the last data that matched
-          2. **`on_schema_change`**
-            - `append_new_columns`:
-              - every new column added to the data model - data will be shown into the table within is_incremental time range.
-              - all deleted columns in data model would be still exist until the model is fully refreshed.
-              - pros: prone to less error since the data would still exist in downstream layer
-              - cons: the column is not represent the latest model - it might be a technical debt for the future once there is a deletion in data model but the table itself just fully refreshed
-            - `sync_all_columns`:
-              - every new column (add and update/delete) will be synced when the data building process happens
-              - pros: all columns represent latest data model
-              - cons: once there is deleted columnd in data model - it might generate error if there is a conumer in downstream layer
-            - `fail`:
-              - make the data building process fail once new column appears into the developed table
-              - fit if the table become very critical ??
-              - pros/cons?
-              - fit for?
-            - `ignore`: 
-              - skip/ deny new column added to current table until the table is full refreshed 
-              - pros/ cons?
-              - fit for?
-    5. Microbatch
-        - Similar with table and incremental
-        - the strategy primarily similar with the incremental
-          - the difference is on how they recall/ update the data - instead of using unique_key, they use --time_start and --time_end
-          - Cheaper (query processing wise since just focused on time column instead of check one by one unique key)
-          - Effective for long query data recall but not as long as --full-refresh (since it's just focus on certain period of time)
+  2. 5 materialization that available on materialization (primarily 2: table and view ):
+
+      1. Table
+          - Data object is presenced into the warehouse,
+          - Exist on data warehouse (queryable) 
+          - Fit for consumption layer - fast to be conusumed (since the data object was ready) - 
+          - Not fit for continuosly-growing data since the cost would get expensive along the time.
+      2. View
+          - Data object is created every time once the model executed 
+          - Exist on data warehouse (queryable)
+          - Fit for upstream layer on the data-warehouse
+      3. Ephemeral
+          - Data object is created every time once the model executed
+          - The difference with the view is the output is not queryable / not available on data warehouse
+      4. Incemental
+          - Similar with table materialization
+          - Exist on data warehouse (queryable)
+          - Fit for consumption layer (faster since the data was ready)
+          - Fit (cost effective compared to table) for continuously growing data such as event-data with late-data arrival conditions (e.g. last 3 or x days)
+          
+          - Some important part under incremental (I know it's part of incremental - but I only remember these 2)
+            1. **`incremental_strategy`**
+              - `merge`: 
+                - Period is defined on is_incremental
+                - Once there is a matched `unique_key` -> update the target data
+                - Once there is unmatched `unique_key` -> insert the data into the target
+              - `delete+insert`: (insert + delete): we scan based on unique_key on certain period - then we delete the last data that matched
+              - `append`: we just insert the data based on certained date column - Fit for non-lookback and immutable data
+                - Period is defined on is_incremental() 
+                - Fit for immutable data
+                - Can still capture late data arrival with correct strategy (focused on `loaded_at` or `ingested_at` instead of `max(event_ts)`)
+              -  `microbatch` : 
+                - dbt splits the data into batches by `event_time` and `batch_size` (e.g. 1 day per batch) and runs one query per batch
+                - no `is_incremental()` and no `unique_key` needed - each batch just replaces its own time slice
+                - CLI flags for partial backfill: `--event-time-start` and `--event-time-end`
+                - pros: backfill and retry per batch (safer than one big full-refresh; a failed batch can be retried alone)
+                - Unknown: how dbt-duckdb implements it (not tested)
+              - `insert_overwrite`:
+                - change all date within partition
+                - cons: the data that is not change within partition might be deleted - even the data is still valid
+                - much more effective since it's logic wise is simpler
+            2. **`on_schema_change`**
+              - `append_new_columns`:
+                - every new column added to the data model - data will be shown into the table within is_incremental time range.
+                - all deleted columns in data model would be still exist until the model is fully refreshed.
+                - pros: prone to less error since the data would still exist in downstream layer
+                - cons: the column is not represent the latest model - it might be a technical debt for the future once there is a deletion in data model but the table itself just fully refreshed
+              - `sync_all_columns`:
+                - every new column (add and update/delete) will be synced when the data building process happens
+                - pros: all columns represent latest data model
+                - cons: once there is deleted columnd in data model - it might generate error if there is a conumer in downstream layer
+              - `fail`:
+                - make the data building process fail once new column appears into the developed table
+                - fit if the table's schema need to be fully aware of every single change
+                - pros: any change much more awared
+                - cons: every change need intervention
+              - `ignore`: 
+                - skip/ deny new column added to current table until the table is full refreshed 
+                - pros: no overhead
+                - fit for: stable schema
+      5. Materialized View
+          - Similar with table and incremental: exist on data warehouse (queryable) and the data is ready to be consumed
+          - The difference: the warehouse itself keeps it up to date (refresh is managed by the warehouse, not by my `is_incremental()` logic or `unique_key`)
+          - dbt only creates it from the model SQL (and decides what to do when its config changes)
+          - Fit: consumption layer where the query is simple enough for the warehouse to refresh automatically
+          - Limits (Docs, recall): only some adapters support it, and the SQL allowed is restricted. Unknown: whether dbt-duckdb supports it (not tested)
 
   3. How it configure?
     1. First option- and it's recommended (DRY): we can configure directly by dbt_project.yml and categorized based on schema (e.g. staging:view, intermediate:view, core: incremental, etc.)
     2. Second- for certain needs/condition - we can define on model-associated yml --> {{ configuration=(materialization: `<strategy>`)}}
   
-## Snapshot
+### Snapshot
   1. What and Why
     - What: A method to capture information change toward a column(s)
-    - Why we need it: Backup process once the data not equipped with cdc on the upstream but the dimension/data changing along the time
+    - Why we need it: cover a gap when the upstream doesn't equipped with cdc but we need to know data change between 2 runs (changes that happen and revert between 2 runs are not captured)
       How in Bolt: in Bolt, this case is not relevant due to there is change-data-capture on the upstream, so every event was recorded
   2. How:
     0. Define in snapshots - under yml
     1. Called through dbt snapshot -s `model_name.yml`
     2. Only focus on existing and future data - Further, past data wouldn't be available.
     3. 2 strategies:
-        - check: focus on defined column - not sure is it check every single row or how
-        - timestamp: focus on every single update on each data (e.g. `last_updated_at`) 
-    
-      Not sure: is the dbt check every single row `last_updated_at` or 1 table should be has only 1 `last_updated_at` (e.g. through max(`last_updated_at`))
+        - `check`: compare the defined columns (`check_cols`) of each row, matched by `unique_key`, with the latest snapshot row. Any difference -> close the old row (`dbt_valid_to`) and insert a new one. Use when there is no reliable `updated_at` (my case: `dim_restaurant_scd2`)
+        - `timestamp`: compare the row's `updated_at` with the one stored in the snapshot, per row (not one max for the whole table). Newer -> new version. Cheaper, but needs a trustworthy `updated_at`
+      
+      Answer to my earlier question: both strategies work per row (per `unique_key`), not per table.
 
-## audit_helper
+### audit_helper
+  1. What: a dbt package of macros to compare 2 data products (e.g. old vs rewritten model), especially for a migration/refactor
+  2. Why: when we rework a data model, we need proof that the result is still the same
+  3. How:
+      1. Add `dbt-labs/audit_helper` to `packages.yml`, run `dbt deps`
+      2. Write a one-line macro call in `analyses/`, run it with `dbt show -s <analysis name>`
+      3. Order matters: schema check first (`compare_relation_columns`), then row count (`compare_row_counts`), then value check (`compare_all_columns`)
+  4. On DuckDB: `compare_and_classify_relation_rows` failed, so I used plain `EXCEPT` as fallback. Details in M2.1 chapter 6.
 
 
 # M2.1: Incremental Proof for `fact_order`
@@ -158,6 +183,8 @@ Result of the `EXCEPT` comparison after run 2 (`fact_order` vs `fact_order_v2`):
 | only_in_new | 0 |
 
 Row counts are equal (10,000,000 vs 10,000,000) and no row exists on only one side. At column level, schema and all 32 columns also matched (section 6.2).
+
+**Re-check on the final model (2026-11-19):** after `delivery_fee` was restored I ran `dbt run -s fact_order_v2 --full-refresh` and repeated the comparison (v1 = table, v2 = incremental): only_in_v1 = 0, only_in_v2 = 0, rows 10,000,000 vs 10,000,000, `count(distinct order_id)` = 10,000,000 (so no duplicates). The proof above therefore holds for the final model, not only for the version before the schema change.
 
 **Conclusion:** the incremental model caught up on 4 days of new data with no missing or duplicated rows, and its output matches the full table.
 
@@ -314,6 +341,60 @@ Config: `materialized = 'incremental'`, `unique_key = 'order_id'`, `incremental_
 
 ## 11. Next
 
-- Snapshot `restaurant` into `dim_restaurant_scd2`.
-- `delivery_fee` is restored and the model builds (chapter 7). Optionally run the NULL count and a `--full-refresh` + `EXCEPT` re-check.
-- Optionally test `compare_which_relation_columns_differ` on DuckDB.
+- Done: snapshot `dim_restaurant_scd2` (`check` strategy on `restaurant_name, city, rating`; why `check`: source has no `updated_at`).
+- Done: `delivery_fee` restored and the model builds (chapter 7).
+- Parked (optional, not blocking M3): late-arriving data test, `fail` / `sync_all_columns`, `compare_which_relation_columns_differ` on DuckDB.
+- Next: M3 CI/CD + state.
+
+## 12. Snapshot proof: `dim_restaurant_scd2` (SCD2)
+
+Config (`snapshots/core/dim_restaurant_snapshot.yml`): `relation: ref('dim_restaurant')`, `unique_key: restaurant_id`, `strategy: check`, `check_cols: [restaurant_name, city, rating]`.
+
+**Why `check`:** the source has no reliable `updated_at`, and I only care about changes in those 3 columns.
+
+### 12.1 Experiment (2026-11-19)
+
+1. Edited one restaurant in `seeds/restaurant.csv` (`restaurant_id` 567335).
+2. `dbt seed -s restaurant` -> reload the seed.
+3. `dbt build -s dim_restaurant` -> rebuild the dimension (a table, so it needs a rebuild; `stg_` is a view and is always fresh).
+4. `dbt snapshot -s dim_restaurant_scd2` -> compare the dimension with the last snapshot row.
+
+Result (**Fact**, observed):
+
+| restaurant_id | rating | dbt_valid_from | dbt_valid_to |
+|---|---|---|---|
+| 567335 | NULL (`--` in the seed) | 2026-11-14 | 2026-11-19 05:41 |
+| 567335 | 5.0 | 2026-11-19 05:41 | NULL (current) |
+
+The old version was closed and a new current one was inserted. Table total: 148,542 rows, 1 closed.
+
+### 12.2 What I learned
+
+- A snapshot has **one row per version**, not per entity. Current row: `dbt_valid_to is null`.
+- `dbt_valid_from` is when the snapshot **saw** the change, not when it happened in the real world. A change that happens and reverts between two runs is never captured.
+- `check` compares per row (per `unique_key`) only the columns in `check_cols`. My first edit changed `rating_count`, which is not in `check_cols`, so no new version appeared. That is the strategy working as configured.
+- Order matters: seed -> dimension -> snapshot. The snapshot reads `ref('dim_restaurant')`, so a stale dimension means a missed change. `-s +dim_restaurant` covers upstream but not the snapshot (downstream); `dbt build -s restaurant+ --exclude restaurant` covers both.
+- Selector gotcha: `dbt seed -s dim_restaurant` selects nothing (`dim_restaurant` is a model). Seeds are selected by seed name (`restaurant`).
+
+### 12.3 How to read it
+
+```sql
+-- current state
+select * from {{ ref('dim_restaurant_scd2') }} where dbt_valid_to is null
+
+-- as of a date
+select * from {{ ref('dim_restaurant_scd2') }}
+where dbt_valid_from <= '2026-06-01' and (dbt_valid_to > '2026-06-01' or dbt_valid_to is null)
+
+-- point-in-time join from a fact
+... left join {{ ref('dim_restaurant_scd2') }} r
+  on f.restaurant_id = r.restaurant_id
+ and f.order_ts >= r.dbt_valid_from
+ and (f.order_ts < r.dbt_valid_to or r.dbt_valid_to is null)
+```
+
+For the current state, consumers use `dim_restaurant` (a table, always the latest); a "current" wrapper over the snapshot would be redundant. A thin wrapper only makes sense for the **history** side (e.g. `dim_restaurant_history` renaming `dbt_valid_from`/`dbt_valid_to` to `valid_from`/`valid_to` and hiding dbt internal columns), once a consumer actually needs point-in-time data. No such consumer exists yet, so not built.
+
+### 12.4 Related finding
+
+`core` defaulted to `incremental` without `unique_key`, so each run appended all rows again (`dim_restaurant` doubled to 297,082). Fixed: `core` default is now `table`; only `fact_order_v2` opts in to incremental. Dimension without a reliable change timestamp = table; history = snapshot; big append-only fact = incremental.
