@@ -7,7 +7,7 @@ SELECT
     , b.order_date
     , b.city
     , oi.price
-    , oi.quantity
+    , oi.quantity as quantity
     , oi.line_amount as line_amount
     , TRY_CAST(oi.price * oi.quantity AS DECIMAL(18, 2)) AS calculated_line_amount
     , TRY_CAST(oi.line_amount - oi.price * oi.quantity AS DECIMAL(18, 2)) AS line_amount_delta

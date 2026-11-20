@@ -1,9 +1,9 @@
 # STATE
 
-Last updated: 2026-11-19
+Last updated: 2026-11-20
 
 ## Where I am
-- Active module: **M2 Incremental + snapshots**, nearly closed (19 Nov, on schedule). Remaining: close-out checks below, commit docs, then start M3 (20 Nov).
+- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`. Loop A state and defer exploration completed locally; next: clone and CI design.
 - M1 Testing depth: **done** per Rozie (19 Nov): unit tests, custom generic tests, singular test, where, warn_if/error_if, store_failures, freshness, quiz 12 Nov, testing strategy draft `m1_testing_strategy.md`, commit "m1 submission". The "still to verify" list in `m1_action_items.md` is an old note, not a current gap. Only open item: confirm the testing strategy file location if a PR is wanted.
 - M0 baseline: done on 3 Nov 2026. Rough score ~3.5/16 (governance, state, and testing weakest). Details in the Project doc `m0-baseline-scorecard`.
 - Unknown: whether PR #0 (README + `profiles.yml.example`) is done.
@@ -15,8 +15,7 @@ Last updated: 2026-11-19
 - M5 Airflow parked until after the cert (optional). Case study README + Medium after the exam.
 
 ## Next action (just one)
-- [ ] Commit M2 on `main` (docs + `dbt_project.yml` change + STATE.md), then create branch `m3-ci-cd-state` and start M3.
-- Then M3 (CI/CD + state, DuckDB), on its own branch + PR. 
+- [ ] Continue M3 with clone: distinguish creating a relation in the dev schema from defer rewriting upstream `ref()` addresses. Keep local manifest snapshots under git-ignored `dbt-project/state/` and `dbt-project/prod-artifacts/`.
 - Sun is off.
 
 ## Decisions
@@ -43,6 +42,8 @@ Last updated: 2026-11-19
 - OMSA Spring 2027 (class starts 11 Jan 2027): finish the cert before that.
 
 ## Short log
+- 2026-11-20: Compared `state:modified` and `state:modified+`; changed `fact_order_item` selected its downstream mart. Compiled with defer against a manifest pointing to `main`; local `dev` parents won by default, while `--favor-state` resolved them to `main`. Built `prod` successfully and saved its manifest as a new baseline; no nodes selected against that baseline before another code change.
+- 2026-11-19 (end of day): M2 closed (incremental proof, snapshot SCD2 proof, `core` default fixed to table). M3 branch + action items + reading guide created. Felt overwhelmed by the state/defer reading late in the day; stopped on purpose. Restart from Loop A, one concept at a time.
 - 2026-11-19: Reviewed M2 notes against the plan's "Done when" (runtime table + audit match: met). Listed close-out items above. Added audit_helper recap to `incremental_proof.md` (review found 2 things to fix, see next action). Checked M1 status from `m1_action_items.md`.
 - 2026-11-14: M2 mostly done. Incremental proof written; `on_schema_change` learned from a real failure (default `ignore` broke when `delivery_fee` was added; `append_new_columns` fixed it). Snapshot built and SCD2 history checked by me (not re-verified in this session; DuckDB was locked by another process). Tried model versions early (reading guide written). audit_helper: `compare_and_classify_relation_rows` fails on DuckDB, used `EXCEPT` fallback. Lessons: `-s` selects by resource name, not file name; `dbt --no-partial-parse parse` fixes stale-cache errors; editing a seed `id` makes a new key, so edit tracked columns instead.
 - 2026-11-08: Migrated the local Zomato dbt project into `dbt-project/`, including models and local seed CSVs. Renamed dbt project/profile, added a safe profile example, and initialized the parent repository. Full DuckDB validation is the next setup step.
