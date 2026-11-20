@@ -6,6 +6,53 @@ Companion: "dbt Materializations: A Reading Guide" (incremental and `--full-refr
 
 **Learning outcome:** after this guide you can explain, in your own words and without the docs, what the manifest/state is and how `state:modified+`, `--defer`, `dbt clone`, `dbt retry` and `--empty` each use it (or don't). Given a situation, you can pick the right one and say why. You can also run a slim build on your repo (`state:modified+ --defer --state ./prod-artifacts`), which is the base for the CI guide. Check: answer the 5 questions on page 6 correctly.
 
+## My notes (read this first)
+
+Written 20 Nov 2026 after local drills. My words, reviewed and corrected.
+
+**1. Defer in my own words**
+- `--defer` is a flag, not a command. For a parent that is not selected and not in my schema, it rewrites `ref()` to the address in the `--state` manifest (usually prod). 
+    - No data is copied and nothing is written to prod.
+- Why: after changing one model I would otherwise rebuild its whole upstream in dev (That is slow and costly).
+- Reading `dbt build -s "state:modified+" --defer --state ./state`:
+  - `build` creates and tests.
+  - `state:modified+` = nodes that differ from the baseline, plus everything downstream (tests and semantic models too).
+  - `--defer --state` = borrow the rest from prod. The manifest is the address book.
+- `--state` has two jobs: baseline for `state:modified`, and address book for defer.
+- `--empty` is a separate flag: inputs are read with 0 rows, so it validates SQL and joins only. `not_null` and `unique` pass on empty tables without proving anything, so it is not a data check. Cost is near zero, not zero.
+
+**1.2. Node**
+A node is one resource in the DAG: model, test, seed, snapshot, source, semantic model. `state:`, `--defer` and `dbt ls` all work on nodes, identified by `unique_id` (e.g. `model.dbt_cert_prep.dim_food`).
+
+**2. dbt clone** 
+
+`dbt clone -s fact_order --state ./prod-artifacts`
+
+
+1. *what the fudge is that?* 
+    - a process to clone production tabel to my target schema (dev)
+    - analoginya semacam sql wrapper doang sebenernya (di DuckDB) - instead of kita bikin ulang di dev~ yaudah kita bungkus aja macam CREATE VIEW dev.fact_order AS ( SELECT * FROM main.fact_order)
+    (di Snowflake/BigQuery hasilnya zero-copy table, bukan view- further point 2.5)
+2. Kenapa ini perlu?
+   - tidak perlu bikin ulang di dev sehingga lebih cepat dan murah (dibandingkan dbt build)
+3. terus apa bedanya dengan defer?
+   - defer itu ganti alamat ref() ke tabel production (pakai manifest), sehingga tablenya ga ada di dev
+    - Yang diubah (dan downstream-nya) di-build di dev. Yang nggak diubah dibaca dari tabel prod, alamatnya diambil dari manifest di prod-artifacts, selama tabel itu belum ada di dev.
+    - e.g. dbt build -s "state:modified+" --defer --state ./prod-artifacts  
+   - sedangkan clone ini beneran bisa di query walau cuman sql wrapper doang
+4. kapan pake defer vs dbt clone?
+   - defer = default, cukup kalau yang butuh tabelnya cuma dbt
+   - clone = kalau butuh objek fisik: preview di schema PR/CI, atau model incremental supaya ga full rebuild (ga jalan di DuckDB)
+    - upstream incremental yang ga diubah -> defer aja (cuma dibaca)
+    - model incremental yang diubah / ikut terpilih -> clone dulu, lalu build incremental di atas clone (datanya terbatas periode incremental - kalo mo check full ya kudu --full-refresh)
+5. view vs zero-copy table
+   - sama2 bisa di query
+   - view = shortcut, selalu baca prod live, ga bisa di merge
+   - zero-copy = tabel beneran yang share file sama prod, storage ~0 karena yang di-copy cuma daftar file-nya. Bisa di merge, yang berubah aja yang makan storage baru
+   - zero-copy itu foto pas di-clone -> bisa stale kalau prod berubah. Solusi: clone ulang (--full-refresh), di CI clone tiap run
+
+---
+
 ## Outline
 
 1. The big picture: why dbt needs a memory, the five features, where they sit
@@ -30,6 +77,17 @@ Today "correct" means "it ran on my laptop". A team needs every change checked b
 The catch: **dbt has no memory**. Each run starts from nothing (Fact: dbt operations are stateless). It cannot tell what you changed, or where the production tables live, unless you hand it a record of an earlier run.
 
 > These features give dbt a memory of **an earlier run**, so it can do **less work** in this one.
+
+```mermaid
+flowchart LR
+    subgraph Full["Full build"]
+        F1["20 models<br/>all rebuilt in dev"]
+    end
+    subgraph Slim["Slim build: state + defer"]
+        S1["2 changed models<br/>built in dev"]
+        S2["18 unchanged parents<br/>read from prod"]
+    end
+```
 
 ### The mental model: a photo of the project
 
@@ -93,6 +151,23 @@ flowchart LR
     C --> O["Changed nodes<br/>since main"]
 ```
 
+**One manifest, two jobs of `--state`:**
+
+```mermaid
+flowchart LR
+    M["Baseline manifest<br/>per node: checksum + address"] --> J1["state:modified<br/>compares the checksum<br/>= what changed?"]
+    M --> J2["--defer<br/>reads the address<br/>= where does it live?"]
+```
+
+**Where the baseline comes from in real life:**
+
+```mermaid
+flowchart LR
+    PJ["Prod job on main<br/>writes target/manifest.json"] --> ST["Durable storage<br/>S3, CI artifact, dbt Cloud"]
+    ST --> DL["PR job downloads it<br/>into prod-artifacts/"]
+    DL --> U["--state ./prod-artifacts"]
+```
+
 ### A manifest is not Git
 
 | | Git | Manifest |
@@ -152,6 +227,17 @@ Your changed model refs parents you didn't touch. Building them all in your sche
 ### The model: borrow, don't photocopy
 
 With `--defer`, a `ref()` to an unbuilt parent is compiled to the **production** table, using the address recorded in the baseline manifest. No data is copied; only the SQL changes.
+No data is copied; only the SQL changes.
+
+```mermaid
+flowchart LR
+    subgraph No["Without --defer (empty dev schema)"]
+        A1["changed model<br/>built in dev"] -->|"ref(parent)"| A2["dev.parent<br/>missing: error"]
+    end
+    subgraph Yes["With --defer"]
+        B1["changed model<br/>built in dev"] -->|"ref rewritten"| B2["main.parent<br/>read from prod"]
+    end
+```
 
 ### When a ref is deferred (Fact)
 
@@ -244,6 +330,14 @@ Defer only rewrites the `ref()` of **parents** inside dbt's compiled SQL. It cre
 | `dbt clone` | Creates an object from prod, no recompute | New object (clone or view) | Low |
 
 Rule of thumb: **defer first; clone only for gap 1 or gap 2.**
+Rule of thumb: **defer first; clone only for gap 1 or gap 2.**
+
+```mermaid
+flowchart TD
+    N["I need a parent<br/>to exist for my model"] --> B["dbt build<br/>runs the SQL, new table<br/>high cost"]
+    N --> D["--defer<br/>ref points to prod<br/>nothing created"]
+    N --> C["dbt clone<br/>object created from prod<br/>no SQL, low cost"]
+```
 
 ### The model: photocopy only what you need
 
@@ -254,6 +348,15 @@ Rule of thumb: **defer first; clone only for gap 1 or gap 2.**
 - By default, clone **does not recreate** relations that already exist in your target; `--full-refresh` forces it (Fact).
 
 Hypothesis: on DuckDB you get the view fallback. Not verified.
+Hypothesis: on DuckDB you get the view fallback. Not verified.
+
+```mermaid
+flowchart TD
+    S["dbt clone: does the relation<br/>exist in my target schema?"] -->|"no"| Cr["Create clone or view<br/>from the prod object"]
+    S -->|"yes"| Q{"--full-refresh?"}
+    Q -->|"yes"| Re["Recreate it"]
+    Q -->|"no"| Sk["Skip: 'already exists'<br/>still reported as PASS"]
+```
 
 ```bash
 dbt clone --state ./prod-artifacts                       # everything
@@ -303,6 +406,14 @@ Expecting a second `dbt clone` to refresh objects that already exist. It skips t
 ### The model: continue from the bookmark
 
 `dbt retry` re-runs the **last invocation from the point of failure**. It doesn't re-run upstream nodes that succeeded (Fact).
+`dbt retry` re-runs the **last invocation from the point of failure**. It doesn't re-run upstream nodes that succeeded (Fact).
+
+```mermaid
+flowchart LR
+    A["Models 1-6<br/>OK"] --> B["Model 7<br/>FAIL"] --> C["Models 8-20<br/>skipped"]
+    C -.->|"fix the cause"| R["dbt retry<br/>reads run_results.json"]
+    R --> D["Runs 7 and 8-20<br/>skips 1-6"]
+```
 
 ### How it decides (Fact)
 
@@ -350,6 +461,17 @@ Running `dbt retry` without fixing anything and expecting a different result.
 **Problem it solves:** you want to know whether the SQL compiles and runs (columns exist, joins resolve, refs are found) without paying to read the data.
 
 **Model:** a dress rehearsal on an empty stage. Every `ref()` and `source()` is limited to zero rows; dbt still runs the model SQL against the warehouse and creates empty tables (Fact).
+**Model:** a dress rehearsal on an empty stage. Every `ref()` and `source()` is limited to zero rows; dbt still runs the model SQL against the warehouse and creates empty tables (Fact).
+
+```mermaid
+flowchart LR
+    subgraph Normal["Normal run"]
+        N1["source<br/>10M rows"] --> N2["model SQL"] --> N3["table<br/>10M rows"]
+    end
+    subgraph Empty["--empty"]
+        E1["source<br/>limited to 0 rows"] --> E2["model SQL<br/>still runs"] --> E3["empty table"]
+    end
+```
 
 ```bash
 dbt build --empty
@@ -455,9 +577,3 @@ Questions 1 to 3 tell us whether the state/defer/clone model is stable before th
 - [dbt docs: dbt build](https://docs.getdbt.com/reference/commands/build)
 - [dbt docs: Best-practice workflows](https://docs.getdbt.com/best-practices/best-practice-workflows)
 - Items marked Hypothesis or Unknown were not verified; check them before relying on them.
-
-### Personal learning notes / interesting points
-
-1.
-2.
-3.
