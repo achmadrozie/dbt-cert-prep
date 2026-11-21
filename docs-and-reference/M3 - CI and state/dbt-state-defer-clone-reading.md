@@ -2,7 +2,7 @@
 
 For: Rozie · Built on the M3 study sessions (19 Nov 2026) · Checked against docs.getdbt.com, Nov 2026
 Length: about 6 A4 pages. Read one page at a time; each page stands on its own.
-Companion: "dbt Materializations: A Reading Guide" (incremental and `--full-refresh` come back on page 4). CI/CD with GitHub Actions gets its own guide.
+Companion: "dbt Materializations: A Reading Guide" (incremental and `--full-refresh` come back on page 4). CI/CD with GitHub Actions is in its own guide: "dbt CI/CD with GitHub Actions: A Reading Guide" (`dbt-ci-cd-reading.md`).
 
 **Learning outcome:** after this guide you can explain, in your own words and without the docs, what the manifest/state is and how `state:modified+`, `--defer`, `dbt clone`, `dbt retry` and `--empty` each use it (or don't). Given a situation, you can pick the right one and say why. You can also run a slim build on your repo (`state:modified+ --defer --state ./prod-artifacts`), which is the base for the CI guide. Check: answer the 5 questions on page 6 correctly.
 
@@ -139,7 +139,7 @@ To answer "what did my PR change?", dbt needs two pictures: the project now, and
 | | Live manifest | Baseline manifest |
 |---|---|---|
 | Path | `target/manifest.json` | `prod-artifacts/manifest.json` (any folder name) |
-| Written by | every `parse`, `ls`, `compile`, `run`, `build` | you, `cp` after a run on `main` |
+| Written by | `parse` (Fact); `ls`, `compile`, `run`, `build` too (Hypothesis) | you, `cp` after a run on `main` |
 | Changes when | every command; overwrites the previous one | only when you replace it after `main` moves |
 | `dbt clean` | Removed if `target/` is in `clean-targets` (Hypothesis: default; check yours) | Safe if kept outside `clean-targets` |
 | `dbt deps` | Not touched | Not touched |
@@ -186,6 +186,7 @@ flowchart LR
 - `--state <folder>` points dbt at the folder holding the baseline `manifest.json`. It is required for the `state:` selector, for deferral and for `dbt clone`.
 - `state:modified` selects nodes that are new or changed compared with the baseline; the `+` adds everything downstream.
 - dbt reads the file directly inside the folder you pass. `prod-artifacts/target/manifest.json` won't be found.
+- From dbt v1.11 the same path can be set with the environment variable `DBT_ENGINE_STATE`. If the flag and the variable are both set, the flag wins (Fact).
 
 ```bash
 git checkout main && dbt parse
@@ -214,7 +215,7 @@ Hypothesis: if `main` has moved a lot since the baseline was saved, the selectio
 
 ### The common mistake
 
-`--state ./target`. That compares the project with itself, so `state:modified` is always empty.
+Pointing `--state` at the folder dbt itself writes to (`--state ./target`). dbt overwrites `manifest.json` while it parses, so the comparison can go wrong. The docs say to avoid it: copy the baseline into its own folder, or use `--no-write-json` when you need to reproduce a result (Fact).
 
 ---
 
@@ -227,7 +228,6 @@ Your changed model refs parents you didn't touch. Building them all in your sche
 ### The model: borrow, don't photocopy
 
 With `--defer`, a `ref()` to an unbuilt parent is compiled to the **production** table, using the address recorded in the baseline manifest. No data is copied; only the SQL changes.
-No data is copied; only the SQL changes.
 
 ```mermaid
 flowchart LR
@@ -330,7 +330,6 @@ Defer only rewrites the `ref()` of **parents** inside dbt's compiled SQL. It cre
 | `dbt clone` | Creates an object from prod, no recompute | New object (clone or view) | Low |
 
 Rule of thumb: **defer first; clone only for gap 1 or gap 2.**
-Rule of thumb: **defer first; clone only for gap 1 or gap 2.**
 
 ```mermaid
 flowchart TD
@@ -347,7 +346,6 @@ flowchart TD
 - Otherwise dbt creates a **view** that does `select * from` the production object (Fact).
 - By default, clone **does not recreate** relations that already exist in your target; `--full-refresh` forces it (Fact).
 
-Hypothesis: on DuckDB you get the view fallback. Not verified.
 Hypothesis: on DuckDB you get the view fallback. Not verified.
 
 ```mermaid
@@ -374,13 +372,20 @@ dbt clone --state ./prod-artifacts --threads 50          # clones are independen
 | Visible outside dbt (BI, SQL client) | No | Yes |
 | Default choice | Yes, prefer it | When defer isn't enough |
 
-### Worked example: the incremental model in CI (Fact: recommended use)
+### Worked example: the incremental model in CI (Fact: the docs' recommended use)
 
 Your `fact_order` is incremental (M2). In a new PR schema:
 1. Without clone: no table exists → `is_incremental()` = false → full rebuild of 10 million rows.
-2. With clone as the first CI step: `dbt clone --select state:modified+,config.materialized:incremental --state ...` copies the production table → the build runs incrementally.
+2. With clone as the first CI step the production table is copied in, and the build runs incrementally:
 
-Hypothesis: the exact selector above is a common pattern; check the docs page before copying it.
+```bash
+dbt clone --select state:modified+,config.materialized:incremental,state:old --state ./prod-artifacts
+dbt build --select state:modified+ --defer --state ./prod-artifacts
+```
+
+- `state:modified+` limits it to your change and what is downstream. `config.materialized:incremental` keeps only incremental models. `state:old` keeps only models that already exist in production, because a brand-new incremental model has no production table to clone (Fact: dbt docs, "Clone incremental models as the first step of your CI job").
+- This pays off only on warehouses with zero-copy cloning. Elsewhere dbt creates pointer views (Fact: same page), and a view cannot take an incremental merge (Hypothesis: follows from what a view is; your notes above say the same for DuckDB).
+- Unknown: on a second push to the same PR, clone skips relations that already exist (Fact), so the clone from push 1 stays unless the schema is dropped or you pass `--full-refresh`. Whether that matters in your CI is not verified.
 
 ### Use it when
 - Incremental models in CI, to avoid a costly full refresh.
@@ -405,7 +410,6 @@ Expecting a second `dbt clone` to refresh objects that already exist. It skips t
 
 ### The model: continue from the bookmark
 
-`dbt retry` re-runs the **last invocation from the point of failure**. It doesn't re-run upstream nodes that succeeded (Fact).
 `dbt retry` re-runs the **last invocation from the point of failure**. It doesn't re-run upstream nodes that succeeded (Fact).
 
 ```mermaid
@@ -461,7 +465,6 @@ Running `dbt retry` without fixing anything and expecting a different result.
 **Problem it solves:** you want to know whether the SQL compiles and runs (columns exist, joins resolve, refs are found) without paying to read the data.
 
 **Model:** a dress rehearsal on an empty stage. Every `ref()` and `source()` is limited to zero rows; dbt still runs the model SQL against the warehouse and creates empty tables (Fact).
-**Model:** a dress rehearsal on an empty stage. Every `ref()` and `source()` is limited to zero rows; dbt still runs the model SQL against the warehouse and creates empty tables (Fact).
 
 ```mermaid
 flowchart LR
@@ -479,7 +482,8 @@ dbt run --select fact_order --empty
 ```
 
 Facts:
-- Available on `run` and `build` since dbt 1.8; `seed --empty` arrives in dbt 1.12.
+- Supported on `run`, `build`, `snapshot` and `compile`. `run` and `build` got it in dbt 1.8; `seed --empty` arrives in dbt 1.12.
+- On `build`, dbt may skip processing `ref()` or `source()` as an optimization.
 - Python models ignore the flag.
 - `flags.EMPTY` is true inside Jinja when the flag is passed.
 
@@ -543,7 +547,7 @@ flowchart TD
 ### Applied to your repo (Hypothesis)
 
 - Local learning: `prod-artifacts/` from `main`, a branch `m3-state-test`, `dbt ls` and `compile --defer` to observe.
-- CI (M3 Week 5): lint → `build --empty` on `state:modified+` → clone the incremental `fact_order` → real `build --select state:modified+ --defer` into `pr_<n>`.
+- CI (M3 Week 5): lint → clone the incremental `fact_order` → `build --empty` on `state:modified+` → real `build --select state:modified+ --defer` into `pr_<n>`. Clone goes before the empty run: the docs make clone the first step of a CI job (Fact), and clone skips relations that already exist, which an empty run would otherwise create first (Hypothesis). The M3 curriculum lists lint, `--empty` and the real build; clone is an addition. Unknown: `--empty` together with `--defer`.
 - `dbt-duckdb` on a data subset if the Snowflake trial has expired.
 
 ### Corrections from today's session
@@ -576,4 +580,7 @@ Questions 1 to 3 tell us whether the state/defer/clone model is stable before th
 - [dbt docs: About the --empty flag](https://docs.getdbt.com/docs/build/empty-flag) (read through a search excerpt only)
 - [dbt docs: dbt build](https://docs.getdbt.com/reference/commands/build)
 - [dbt docs: Best-practice workflows](https://docs.getdbt.com/best-practices/best-practice-workflows)
+- [dbt docs: Clone incremental models as the first step of your CI job](https://docs.getdbt.com/best-practices/clone-incremental-models)
+- [dbt docs: Node selector methods](https://docs.getdbt.com/reference/node-selection/methods)
+- [dbt docs: Configure state selection](https://docs.getdbt.com/reference/node-selection/configure-state)
 - Items marked Hypothesis or Unknown were not verified; check them before relying on them.

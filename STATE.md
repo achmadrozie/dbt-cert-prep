@@ -1,9 +1,9 @@
 # STATE
 
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 ## Where I am
-- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`. Loop A (state, defer, clone) done locally; next: Loop B (CI data + lint).
+- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`. Loop A (state, defer, clone) and Loop B (lint + CI sample data) done; next: Loop C (GitHub Actions).
 - M1 Testing depth: **done** per Rozie (19 Nov): unit tests, custom generic tests, singular test, where, warn_if/error_if, store_failures, freshness, quiz 12 Nov, testing strategy draft `m1_testing_strategy.md`, commit "m1 submission". The "still to verify" list in `m1_action_items.md` is an old note, not a current gap. Only open item: confirm the testing strategy file location if a PR is wanted.
 - M0 baseline: done on 3 Nov 2026. Rough score ~3.5/16 (governance, state, and testing weakest). Details in the Project doc `m0-baseline-scorecard`.
 - Unknown: whether PR #0 (README + `profiles.yml.example`) is done.
@@ -15,10 +15,12 @@ Last updated: 2026-11-20
 - M5 Airflow parked until after the cert (optional). Case study README + Medium after the exam.
 
 ## Next action (just one)
-- [ ] M3 Loop B: decide the small-data path for CI (sample CSVs or generated sample) and add `.sqlfluff`. One decision first, then lint. Optional before it: drill `--defer` against an empty dev schema (not done yet).
+- [ ] M3 Loop C: write `.github/workflows/ci.yml` (checkout, Python + dbt-duckdb, `dbt deps`, `sqlfluff lint models tests`, `cp ci/seeds/*.csv seeds/`, `dbt build`). Never run that `cp` locally: it would overwrite the full CSVs. Optional first: `dbt retry` and `--empty` drills (not done).
 - Sun is off.
 
 ## Decisions
+- 2026-11-21: CI data = small consistent sample, not clone/defer. Reason: "prod" is a DuckDB file on my laptop, so a CI runner cannot reach it (clone = view of `main.X` in the same file). `scripts/make_ci_sample.sql` (run in-memory, never locks `dbt.duckdb`) picks 1000 orders by `hash(order_id)` and filters children by parent keys; output `ci/seeds/*.csv` (~750 KB, 0 orphans). Rehearsal in a clean copy (profile in scratch, sample copied into `seeds/`): `dbt build` PASS=147 ERROR=0 in ~5s. Not covered: edge cases, values at full scale.
+- 2026-11-21: Lint = `.sqlfluff` (duckdb, jinja, leading commas, max line 120, excluded ST06/ST07/AL01/AL09/RF04 as style or would change output) + `.sqlfluffignore` (target, dbt_packages, logs, analyses). CI command should be explicit: `sqlfluff lint models tests`. `analyses/` skipped because jinja templater cannot render `audit_helper`.
 - 2026-11-19: `core` default materialization changed from `incremental` to `table` in `dbt_project.yml`. Reason: dim_* and fact_order_item inherited `incremental` without `unique_key` or `is_incremental()`, so each run appended all rows again (dim_restaurant doubled to 297,082 rows). Only `fact_order_v2` opts in to incremental in its own `config()`. Rule: dimensions without a reliable change timestamp = table; big append-only facts = incremental; history = snapshot.
 - 2026-11-19: The 31 failing relationship tests came from a stale `dim_restaurant` (id `567335` was edited to `567335696969` in an M1 experiment). Fixed by rebuilding; relationship tests pass.
 - 2026-11-19: `fact_order_v2` full-refresh + EXCEPT vs v1 = 0/0, 10M rows, 10M distinct order_id (recorded in `incremental_proof.md` section 5).
@@ -42,6 +44,7 @@ Last updated: 2026-11-20
 - OMSA Spring 2027 (class starts 11 Jan 2027): finish the cert before that.
 
 ## Short log
+- 2026-11-21: Loop B done. Lint passes (commit `cfa7f9a` pushed). Built the CI sample and proved it in a clean simulated runner. Clarified: `target/` is the last run on that machine, a baseline is a frozen copy of prod's manifest; path `/x` vs `./x`; clone idea for CI does not fit DuckDB. Not committed yet: `scripts/`, `ci/`, `dbt-ci-cd-reading.md`.
 - 2026-11-20 (later): Loop A closed. Drill 1 done (baseline refreshed with stash, parse, cp, pop; `state:modified` vs `+`; dependencies come from `ref()`, not column names). Clone tested on DuckDB: it creates a view `dev.X = select * from main.X` (no data copied, no SQL run), so the incremental-in-CI use of clone will not work here. Quiz 4/5; missed the two jobs of `--state` (checksum for `state:modified`, address for `--defer`). Personal notes are at the top of `dbt-state-defer-clone-reading.md`; clone notes kept by me. Wanted to quit twice; stopped and kept going in small steps, no decision made.
 - 2026-11-20: Compared `state:modified` and `state:modified+`; changed `fact_order_item` selected its downstream mart. Compiled with defer against a manifest pointing to `main`; local `dev` parents won by default, while `--favor-state` resolved them to `main`. Built `prod` successfully and saved its manifest as a new baseline; no nodes selected against that baseline before another code change.
 - 2026-11-19 (end of day): M2 closed (incremental proof, snapshot SCD2 proof, `core` default fixed to table). M3 branch + action items + reading guide created. Felt overwhelmed by the state/defer reading late in the day; stopped on purpose. Restart from Loop A, one concept at a time.
