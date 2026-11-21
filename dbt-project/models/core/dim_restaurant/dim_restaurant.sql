@@ -1,4 +1,4 @@
-SELECT 
+SELECT
     restaurant_id
     , restaurant_name
     , city

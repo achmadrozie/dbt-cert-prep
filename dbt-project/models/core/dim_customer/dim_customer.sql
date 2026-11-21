@@ -3,6 +3,12 @@ SELECT
     , customer_name
     , email
     , age
+    , gender
+    , marital_status
+    , occupation
+    , income_band
+    , education
+    , family_size
     , CASE
         WHEN age < 25 THEN 'Gen Z'
         WHEN age < 40 THEN 'Millennial'
@@ -10,10 +16,4 @@ SELECT
         WHEN age IS NULL THEN 'Unknown'
         ELSE 'Boomer'
     END AS age_segment
-    , gender
-    , marital_status
-    , occupation
-    , income_band
-    , education
-    , family_size
 FROM {{ ref('stg_zomato__user') }}

@@ -46,6 +46,6 @@ INNER JOIN {{ ref('int_order_fulfillment') }} u USING (order_id)
 LEFT JOIN {{ ref('int_order_item_rollup') }} i USING (order_id)
 {% if is_incremental() %}
     -- WHERE b.order_date <= '{{ var("as_of", "2026-06-30") }}'
-    WHERE b.order_date >= (SELECT MAX(order_date) FROM {{ this }}) - INTERVAL 3 DAY
+    WHERE b.order_date >= (SELECT MAX(t.order_date) FROM {{ this }} AS t) - INTERVAL 3 DAY
 
 {% endif %}
