@@ -10,6 +10,54 @@ Companion: `dbt-state-defer-clone-reading.md` (state, defer, clone, retry and `-
 
 *Your own notes go here, in your own words. This section is yours; nothing in the guide below rewrites it.*
 
+**The core question of M3**
+
+> How do I know a PR is safe to merge, and how do I keep that check fast and cheap?
+
+| Layer | What it answers | Tools |
+|---|---|---|
+| Isolated | Try the change without touching prod | `pr_<n>` schema, clean runner |
+| Automatic | Check every PR without manual work | CI: lint, build, tests |
+| Efficient | Pay only for what changed | `state:modified+`, `--defer`, `dbt clone`, baseline |
+
+- Safe = isolated + checked automatically. Cheap = state, defer, clone.
+- CI guards the door to `main`. Deploying to prod is the CD side, not the focus here.
+- My repo (DuckDB): layers 1 and 2 as designed; layer 3 is replaced by a small consistent sample.
+
+**1. Baseline lifecycle** (the life of the baseline manifest: created, stored, used, refreshed)
+1. Merge to `main` triggers a workflow (`on: push` to main).
+2. The workflow runs `dbt parse` on `main`'s code, which writes a new `manifest.json`.
+3. The manifest is uploaded to durable storage (CI artifact or bucket).
+4. A PR job downloads it into `prod-artifacts/` and runs with `--state ./prod-artifacts`.
+- Git carries code, not the manifest. `git pull` does not refresh the baseline.
+- Not the same as `target/manifest.json`, which is the last run on that machine and is overwritten on every parse.
+- If `main` moves while my PR is open, my baseline is stale: update the branch, then refresh the baseline.
+
+**2. Slim CI: five stages** (cheap first, expensive last)
+
+| # | Stage | Fails when |
+|---|---|---|
+| 1 | Setup | baseline missing (`no comparison manifest`) |
+| 2 | Lint | SQLFluff or Jinja rule broken (SQL is not run yet) |
+| 3 | Clone incrementals | selector or baseline problem |
+| 4 | Empty run (`--empty`) | broken ref, column or join, on zero rows |
+| 5 | Real build | a test fails on real rows |
+
+- Slim CI = build only what the PR changed, borrow the rest from prod.
+- My repo (DuckDB) runs 3 stages: lint, load sample, build. Prod is a file on my laptop, so a runner cannot defer or clone from it.
+
+**3. CI maturity ladder** (my own label, not an official term)
+
+| Level | What checks a PR | Catches |
+|---|---|---|
+| 0 | Reviewer only | logic a human can see |
+| 1 | + lint | style, Jinja and rule breaks |
+| 2 | + automatic build and tests (small data or full build) | broken SQL, failing tests |
+| 3 | + slim CI (state, defer, clone) | same as 2, but cheap at scale |
+| 4 | + required status check on `main` | nothing red can be merged |
+
+- This repo: level 2 now (Loop C), level 3 only explained, because DuckDB on a laptop cannot defer or clone in CI.
+
 ---
 
 ## Outline

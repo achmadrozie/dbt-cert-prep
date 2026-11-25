@@ -10,6 +10,17 @@ Companion: "dbt Materializations: A Reading Guide" (incremental and `--full-refr
 
 Written 20 Nov 2026 after local drills. My words, reviewed and corrected.
 
+**0. Manifest**
+- What: `manifest.json` is a photo of the project at one run: every node with its code checksum, config, dependencies and table address. It holds no data.
+- Why: dbt is stateless, so it cannot tell what changed or where prod lives unless I hand it an earlier photo.
+- Where: `target/manifest.json`, written on every `parse`, `ls`, `compile`, `run`, `build`.
+- Two roles, same file type:
+  - **Live**: `target/manifest.json`, overwritten on every run. Never use it as `--state`.
+  - **Baseline**: a frozen copy of prod's manifest (here `prod-artifacts/`, any folder name). This is what `--state` points to.
+- Required? Not for a normal build. Needed when I use `state:` selection, `--defer` or `dbt clone` (all need `--state`). `dbt retry` does not use it; it reads `run_results.json`.
+- Not in Git (git-ignored). It travels by workflow or artifact, not by `git pull` (see CI guide, baseline lifecycle).
+- Its siblings in `target/`: `run_results.json` (what happened in the last run), `semantic_manifest.json` (semantic layer).
+
 **1. Defer in my own words**
 - `--defer` is a flag, not a command. For a parent that is not selected and not in my schema, it rewrites `ref()` to the address in the `--state` manifest (usually prod). 
     - No data is copied and nothing is written to prod.
@@ -35,6 +46,9 @@ A node is one resource in the DAG: model, test, seed, snapshot, source, semantic
     (di Snowflake/BigQuery hasilnya zero-copy table, bukan view- further point 2.5)
 2. Kenapa ini perlu?
    - tidak perlu bikin ulang di dev sehingga lebih cepat dan murah (dibandingkan dbt build)
+   - clone vs build: build = jalanin SQL model, hitung semua baris, tabel baru (mahal). clone = SQL model ga dijalanin, objek dibuat dari objek prod (murah)
+   - hematnya di compute dan waktu, bukan storage (storage ~0 itu bonus, cuma di zero-copy)
+   - arah: sumber `main.fact_order` -> hasil `<target schema>.fact_order` (`dev` di lokal, `pr_<n>` di CI)
 3. terus apa bedanya dengan defer?
    - defer itu ganti alamat ref() ke tabel production (pakai manifest), sehingga tablenya ga ada di dev
     - Yang diubah (dan downstream-nya) di-build di dev. Yang nggak diubah dibaca dari tabel prod, alamatnya diambil dari manifest di prod-artifacts, selama tabel itu belum ada di dev.
@@ -42,9 +56,10 @@ A node is one resource in the DAG: model, test, seed, snapshot, source, semantic
    - sedangkan clone ini beneran bisa di query walau cuman sql wrapper doang
 4. kapan pake defer vs dbt clone?
    - defer = default, cukup kalau yang butuh tabelnya cuma dbt
-   - clone = kalau butuh objek fisik: preview di schema PR/CI, atau model incremental supaya ga full rebuild (ga jalan di DuckDB)
+   - clone = kalau butuh objek fisik: preview di schema PR/CI, atau model incremental supaya ga full rebuild (ga jalan di DuckDB: hipotesis, belum dites)
     - upstream incremental yang ga diubah -> defer aja (cuma dibaca)
     - model incremental yang diubah / ikut terpilih -> clone dulu, lalu build incremental di atas clone (datanya terbatas periode incremental - kalo mo check full ya kudu --full-refresh)
+   - satu kalimat: defer = default di mana saja (lokal dan CI). clone = tambahan, bukan pengganti: kalau incremental yang di-build butuh tabelnya ada dulu, atau ada pembaca di luar dbt
 5. view vs zero-copy table
    - sama2 bisa di query
    - view = shortcut, selalu baca prod live, ga bisa di merge
