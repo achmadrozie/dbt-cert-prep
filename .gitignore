@@ -10,3 +10,5 @@ dbt-project/.user.yml
 dbt-project/seeds/*.csv
 dbt-project/dbtduckdb
 *.duckdb.wal
+dbt-project/state/
+dbt-project/prod-artifacts/

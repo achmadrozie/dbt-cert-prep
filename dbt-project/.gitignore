@@ -11,3 +11,5 @@ profiles.yml
 .user.yml
 dbtduckdb
 /docs-and-reference/AE Readiness — Skill Assessment & Curriculum (Nov 2026 – Jan 2027).md
+# CI profile has no credentials and must be committed
+!ci/profiles.yml
