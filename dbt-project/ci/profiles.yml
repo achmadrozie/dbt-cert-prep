@@ -1,0 +1,9 @@
+# CI-only profile. No credentials: DuckDB file created fresh on each runner.
+dbt_cert_prep:
+  target: ci
+  outputs:
+    ci:
+      type: duckdb
+      path: ci.duckdb
+      schema: main
+      threads: 4
