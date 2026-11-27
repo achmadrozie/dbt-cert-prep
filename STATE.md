@@ -3,7 +3,7 @@
 Last updated: 2026-11-27
 
 ## Where I am
-- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`, PR #1 open. Loops A-D done; Loop E drafted (`docs/ci_strategy.md`), waiting for my review, commit and merge.
+- Active module: **M4 Governance**, branch `m4-data-governance`. Loop A mostly done on `fact_order`; Loop C done (group `product_platform`, `int_order_financials` private, parse failed then passed). Open: rest of A, B, D, E. M3 closed (PR #1 merged 27 Nov).
 - M1 Testing depth: **done** per Rozie (19 Nov): unit tests, custom generic tests, singular test, where, warn_if/error_if, store_failures, freshness, quiz 12 Nov, testing strategy draft `m1_testing_strategy.md`, commit "m1 submission". The "still to verify" list in `m1_action_items.md` is an old note, not a current gap. Only open item: confirm the testing strategy file location if a PR is wanted.
 - M0 baseline: done on 3 Nov 2026. Rough score ~3.5/16 (governance, state, and testing weakest). Details in the Project doc `m0-baseline-scorecard`.
 - Unknown: whether PR #0 (README + `profiles.yml.example`) is done.
@@ -15,9 +15,8 @@ Last updated: 2026-11-27
 - M5 Airflow parked until after the cert (optional). Case study README + Medium after the exam.
 
 ## Next action (just one)
-- [ ] Close M3: review `docs/ci_strategy.md` (can I defend every line?), check screenshots 01, 02, 04 for private browser tabs, commit the doc, evidence PNGs, reading-note line and `STATE.md`, push, wait for green, merge PR #1.
-- Schedule check: M4 was planned for 27 Nov - 1 Dec and has not started. Decide at the start of the next session whether to shift or compress it (3-5 Dec re-take, exam 7 Dec).
-- Sun is off.
+- [ ] Mon 30 Nov: finish Loop A (prove a `not_null` constraint failure; contract + constraints on `fact_order_item`), then Loop B (versions + deprecation, guide section 2). Tue 1 Dec: Loop D (exposures) and E (PR). Open recheck: should `int_order_base` stay `private` if another team in the same project uses it?
+- Sat light/off, Sun off.
 
 ## Decisions
 - 2026-11-21: CI data = small consistent sample, not clone/defer. Reason: "prod" is a DuckDB file on my laptop, so a CI runner cannot reach it (clone = view of `main.X` in the same file). `scripts/make_ci_sample.sql` (run in-memory, never locks `dbt.duckdb`) picks 1000 orders by `hash(order_id)` and filters children by parent keys; output `ci/seeds/*.csv` (~750 KB, 0 orphans). Rehearsal in a clean copy (profile in scratch, sample copied into `seeds/`): `dbt build` PASS=147 ERROR=0 in ~5s. Not covered: edge cases, values at full scale.
@@ -45,6 +44,8 @@ Last updated: 2026-11-27
 - OMSA Spring 2027 (class starts 11 Jan 2027): finish the cert before that.
 
 ## Short log
+- 2026-11-27 (late afternoon): Loop C done. Hit and fixed: `groups:` typo (silently ignored, gave "private to the '' group"), owner must be an object, `private` on `fact_order` blocked the marts. Versions notes moved into section 2 of the governance guide. Studied past the ~15:00 limit (stopped about 16:35).
+- 2026-11-27 (afternoon): M4 started. Reading guide section 1 refined with my questions. Contract on `fact_order` (data types partly typed by me, rest filled by Claude) plus 3 `not_null` constraints. Seen myself: missing `data_type` error, green build 23/23, `city` type mismatch rejected. Open: contract vs constraint placement in YAML was still confusing; recheck on Monday.
 - 2026-11-27: Loops C and D done. `ci.yml` + `ci/profiles.yml` live on PR #1 (first PR in the repo; workflow file drafted by Claude, walked through block by block). Runs: green, red at lint, red at build (1 error, 27 skipped), green 147/147; screenshots saved. `dbt retry` tested locally (reran only the failed test). Learned Ctrl+Z suspends and keeps the DuckDB lock (`fg`); the editor's `dbt lsp` also takes the lock. `--empty` not tested. Wanted to give up mid-morning; slowed down to one block at a time and finished.
 - 2026-11-25: Back from interview prep. Quiz after the break: MCQ 6/7 (missed `ci.yml` location: `.github/workflows/` at repo root), fill-ins showed the gap: Git carries code, not the manifest (baseline lifecycle), and the order of the five Slim CI stages. Added My notes to both guides (manifest, clone vs build, defer vs clone, baseline lifecycle, five stages, CI maturity ladder, core question of M3). Terminal practice 1 done (manifests are git-ignored); 2 and 3 not done. Tired after the gym; stopped on purpose, no files created for Loop C yet.
 - 2026-11-21: Loop B done. Lint passes (commit `cfa7f9a` pushed). Built the CI sample and proved it in a clean simulated runner. Clarified: `target/` is the last run on that machine, a baseline is a frozen copy of prod's manifest; path `/x` vs `./x`; clone idea for CI does not fit DuckDB. Not committed yet: `scripts/`, `ci/`, `dbt-ci-cd-reading.md`.

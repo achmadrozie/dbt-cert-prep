@@ -6,7 +6,7 @@ SELECT
     , SUM(i.quantity) AS ordered_quantity
     , SUM(i.line_amount) AS source_line_amount
     , SUM(i.calculated_line_amount) AS calculated_line_amount
-    , SUM(i.line_amount_delta) AS line_amount_delta
+    , SUM(i.amount_delta) AS line_amount_delta
 FROM {{ ref('fact_order_item') }} AS i
 LEFT JOIN {{ ref('fact_order') }} AS o
     ON i.order_id = o.order_id

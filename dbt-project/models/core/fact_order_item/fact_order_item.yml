@@ -1,8 +1,14 @@
-version: 2
-
 models:
   - name: fact_order_item
     description: '{{ doc("fact_order_item") }}'
+    latest_version: 2
+    versions:
+      - v: 1
+        defined_in : fact_order_item_v1
+        deprecation_date: 2027-01-31
+      - v: 2
+        config:
+          alias: fact_order_item
     columns:
       - name: order_item_id
         description: '{{ doc("fact_order_item_order_item_id") }}'
