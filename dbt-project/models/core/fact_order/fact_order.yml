@@ -11,17 +11,26 @@ models:
       - v : 1
         defined_in: fact_order_v1
     description: '{{ doc("fact_order") }}'
+    config:
+      contract:
+        enforced: true
+
     columns:
       - name: order_id
+        data_type: bigint
         description: '{{ doc("fact_order_order_id") }}'
+        constraints:
+          - type: not_null
         data_tests:
           - unique
           - not_null
       - name: order_timestamp
+        data_type: timestamp
         description: '{{ doc("fact_order_order_timestamp") }}'
         data_tests:
           - not_null
       - name: order_date
+        data_type: date
         description: '{{ doc("fact_order_order_date") }}'
         data_tests:
           - not_null
@@ -30,7 +39,10 @@ models:
                 to: ref('dim_date')
                 field: date_day
       - name: customer_id
+        data_type: bigint
         description: '{{ doc("fact_order_customer_id") }}'
+        constraints:
+          - type: not_null
         data_tests:
           - not_null
           - relationships:
@@ -38,7 +50,10 @@ models:
                 to: ref('dim_customer')
                 field: customer_id
       - name: restaurant_id
+        data_type: bigint
         description: '{{ doc("fact_order_restaurant_id") }}'
+        constraints:
+          - type: not_null
         data_tests:
           - not_null
           - relationships:
@@ -46,62 +61,89 @@ models:
                 to: ref('dim_restaurant')
                 field: restaurant_id
       - name: city
+        data_type: varchar
         description: '{{ doc("fact_order_city") }}'
       - name: cuisine
+        data_type: varchar
         description: '{{ doc("fact_order_cuisine") }}'
       - name: currency
+        data_type: varchar
         description: '{{ doc("fact_order_currency") }}'
       - name: payment_method
+        data_type: varchar
         description: '{{ doc("fact_order_payment_method") }}'
       - name: order_status
+        data_type: varchar
         description: '{{ doc("fact_order_order_status") }}'
         data_tests:
           - accepted_values:
               arguments:
                 values: ['Delivered', 'Cancelled', 'Refunded']
       - name: is_delivered
+        data_type: boolean
         description: '{{ doc("fact_order_is_delivered") }}'
       - name: is_cancelled
+        data_type: boolean
         description: '{{ doc("fact_order_is_cancelled") }}'
       - name: is_refunded
+        data_type: boolean
         description: '{{ doc("fact_order_is_refunded") }}'
       - name: order_hour
+        data_type: bigint
         description: '{{ doc("fact_order_order_hour") }}'
       - name: items_count
+        data_type: bigint
         description: '{{ doc("fact_order_items_count") }}'
       - name: sales_qty
+        data_type: bigint
         description: '{{ doc("fact_order_sales_qty") }}'
       - name: item_line_count
         description: '{{ doc("fact_order_rollup_item_line_count") }}'
+        data_type: bigint
       - name: item_quantity
         description: '{{ doc("fact_order_rollup_item_quantity") }}'
+        data_type: hugeint
       - name: distinct_food_count
         description: '{{ doc("fact_order_rollup_distinct_food_count") }}'
+        data_type: bigint
       - name: subtotal
         description: '{{ doc("fact_order_subtotal") }}'
+        data_type: decimal(18,2)
       - name: discount
         description: '{{ doc("fact_order_discount") }}'
+        data_type: decimal(18,2)
       - name: delivery_fee
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_delivery_fee") }}'
       - name: gst
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_gst") }}'
       - name: sales_amount
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_sales_amount") }}'
       - name: calculated_sales_amount
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_calculated_sales_amount") }}'
       - name: sales_amount_delta
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_sales_amount_delta") }}'
       - name: delivered_sales_amount
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_delivered_sales_amount") }}'
       - name: item_line_amount
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_rollup_item_line_amount") }}'
       - name: calculated_item_amount
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_rollup_calculated_item_amount") }}'
       - name: item_amount_delta
+        data_type: decimal(18,2)
         description: '{{ doc("fact_order_rollup_item_amount_delta") }}'
       - name: customer_rating
+        data_type: decimal(5,2)
         description: '{{ doc("fact_order_customer_rating") }}'
       - name: delivery_time_min
+        data_type: decimal(10,1)
         description: '{{ doc("fact_order_delivery_time_min") }}'
 
 semantic_models:
