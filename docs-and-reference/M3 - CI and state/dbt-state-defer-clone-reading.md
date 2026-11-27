@@ -65,6 +65,7 @@ A node is one resource in the DAG: model, test, seed, snapshot, source, semantic
    - view = shortcut, selalu baca prod live, ga bisa di merge
    - zero-copy = tabel beneran yang share file sama prod, storage ~0 karena yang di-copy cuma daftar file-nya. Bisa di merge, yang berubah aja yang makan storage baru
    - zero-copy itu foto pas di-clone -> bisa stale kalau prod berubah. Solusi: clone ulang (--full-refresh), di CI clone tiap run
+   - bandingannya: defer baca prod saat query jalan (selalu terkini), table clone baca kondisi saat di-clone (beku)
 
 ---
 

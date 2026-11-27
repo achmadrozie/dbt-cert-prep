@@ -1,9 +1,9 @@
 # STATE
 
-Last updated: 2026-11-25
+Last updated: 2026-11-27
 
 ## Where I am
-- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`. Loop A (state, defer, clone) and Loop B (lint + CI sample data) done; next: Loop C (GitHub Actions).
+- Active module: **M3 CI/CD + state**, branch `m3-ci-cd`, PR #1 open. Loops A-D done; Loop E drafted (`docs/ci_strategy.md`), waiting for my review, commit and merge.
 - M1 Testing depth: **done** per Rozie (19 Nov): unit tests, custom generic tests, singular test, where, warn_if/error_if, store_failures, freshness, quiz 12 Nov, testing strategy draft `m1_testing_strategy.md`, commit "m1 submission". The "still to verify" list in `m1_action_items.md` is an old note, not a current gap. Only open item: confirm the testing strategy file location if a PR is wanted.
 - M0 baseline: done on 3 Nov 2026. Rough score ~3.5/16 (governance, state, and testing weakest). Details in the Project doc `m0-baseline-scorecard`.
 - Unknown: whether PR #0 (README + `profiles.yml.example`) is done.
@@ -15,8 +15,8 @@ Last updated: 2026-11-25
 - M5 Airflow parked until after the cert (optional). Case study README + Medium after the exam.
 
 ## Next action (just one)
-- [ ] M3 Loop C: create `dbt-project/ci/profiles.yml` and `.github/workflows/ci.yml` (repo root; checkout, Python 3.11, pinned dbt-duckdb 1.10.0 and sqlfluff 4.1.0, `dbt deps`, `sqlfluff lint models tests`, `cp ci/seeds/*.csv seeds/`, `dbt build --profiles-dir ci --target ci`), push, open PR #3, read the Actions log. Never run that `cp` locally (it overwrites the full CSVs). Before it (5 min, optional): answer recheck (a) does `git pull` refresh `prod-artifacts/`, (b) five Slim CI stages in order, (c) where `ci.yml` lives.
-- Schedule check: M3 window ends Thu 26 Nov and M4 starts Fri 27. Loops D and E remain after C. Decide compress vs shift M4 by one day after Loop C runs, not before.
+- [ ] Close M3: review `docs/ci_strategy.md` (can I defend every line?), check screenshots 01, 02, 04 for private browser tabs, commit the doc, evidence PNGs, reading-note line and `STATE.md`, push, wait for green, merge PR #1.
+- Schedule check: M4 was planned for 27 Nov - 1 Dec and has not started. Decide at the start of the next session whether to shift or compress it (3-5 Dec re-take, exam 7 Dec).
 - Sun is off.
 
 ## Decisions
@@ -45,6 +45,7 @@ Last updated: 2026-11-25
 - OMSA Spring 2027 (class starts 11 Jan 2027): finish the cert before that.
 
 ## Short log
+- 2026-11-27: Loops C and D done. `ci.yml` + `ci/profiles.yml` live on PR #1 (first PR in the repo; workflow file drafted by Claude, walked through block by block). Runs: green, red at lint, red at build (1 error, 27 skipped), green 147/147; screenshots saved. `dbt retry` tested locally (reran only the failed test). Learned Ctrl+Z suspends and keeps the DuckDB lock (`fg`); the editor's `dbt lsp` also takes the lock. `--empty` not tested. Wanted to give up mid-morning; slowed down to one block at a time and finished.
 - 2026-11-25: Back from interview prep. Quiz after the break: MCQ 6/7 (missed `ci.yml` location: `.github/workflows/` at repo root), fill-ins showed the gap: Git carries code, not the manifest (baseline lifecycle), and the order of the five Slim CI stages. Added My notes to both guides (manifest, clone vs build, defer vs clone, baseline lifecycle, five stages, CI maturity ladder, core question of M3). Terminal practice 1 done (manifests are git-ignored); 2 and 3 not done. Tired after the gym; stopped on purpose, no files created for Loop C yet.
 - 2026-11-21: Loop B done. Lint passes (commit `cfa7f9a` pushed). Built the CI sample and proved it in a clean simulated runner. Clarified: `target/` is the last run on that machine, a baseline is a frozen copy of prod's manifest; path `/x` vs `./x`; clone idea for CI does not fit DuckDB. Not committed yet: `scripts/`, `ci/`, `dbt-ci-cd-reading.md`.
 - 2026-11-20 (later): Loop A closed. Drill 1 done (baseline refreshed with stash, parse, cp, pop; `state:modified` vs `+`; dependencies come from `ref()`, not column names). Clone tested on DuckDB: it creates a view `dev.X = select * from main.X` (no data copied, no SQL run), so the incremental-in-CI use of clone will not work here. Quiz 4/5; missed the two jobs of `--state` (checksum for `state:modified`, address for `--defer`). Personal notes are at the top of `dbt-state-defer-clone-reading.md`; clone notes kept by me. Wanted to quit twice; stopped and kept going in small steps, no decision made.
