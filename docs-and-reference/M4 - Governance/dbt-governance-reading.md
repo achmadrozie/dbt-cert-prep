@@ -386,6 +386,27 @@ models:
       access: private
 ```
 
+Breaking the rule fails at **parse** time: `... is not allowed because the referenced node is private to the '<group>' group.`
+
+**Exam trap:** this only controls `ref()`. Anyone with a SQL client can still query the table; that needs `grants`.
+
+### Where it is written
+
+```text
+dbt-project/
+  dbt_project.yml          <- optional: +group for a whole folder
+  models/
+    _groups.yml            <- defines the group ONCE (name + owner)
+    intermediate/order/int_order_financials/
+      int_order_financials.yml   <- this model: config: group + access
+    core/fact_order/
+      fact_order.yml             <- this model: config: group
+```
+
+- `_groups.yml` lives **inside** `models/`; the file name is my choice, the `groups:` key is what dbt reads.
+- Each model states its own membership and access in its YAML.
+- The key is `group:` (singular) under `config`. A typo such as `groups:` is silently ignored.
+
 ### `meta`: free-form labels
 
 `meta` holds any key and value I want. **Observed:** these parse on a group and on a model, and appear in `manifest.json`.
@@ -421,11 +442,27 @@ dbt **enforces nothing** from `meta`: it is information for people and tools (do
 
 Analogy: `meta` is a sticky note on a folder; `access` is the lock.
 
-**Observed** error when the rule is broken, at parse time: `attempted to reference node ..., which is not allowed because the referenced node is private to the 'finance' group.`
+### `tags`: labels for selection
 
-**Important:** this controls `ref()` inside dbt only. It is **not** database permission. Someone with a SQL client can still query the table; that needs `grants`.
+```yaml
+# dbt_project.yml: a whole folder
+models:
+  dbt_cert_prep:
+    core:
+      +tags: [core]
 
-**Use** `private` for building blocks others should not depend on. **Common mistake:** thinking `private` hides data.
+# or one model, in its YAML
+models:
+  - name: fact_order
+    config:
+      tags: [finance]
+```
+
+```bash
+dbt build -s tag:core          # run everything labelled core
+```
+
+Tags answer "**what do I run together?**". They block nothing and have no owner. Not tried in this project yet.
 
 ---
 
