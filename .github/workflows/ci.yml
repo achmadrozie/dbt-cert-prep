@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: dbt-project
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dbt and sqlfluff
+        run: pip install dbt-core==1.10.22 dbt-duckdb==1.10.0 sqlfluff==4.1.0
+
+      - name: Install dbt packages
+        run: dbt deps --profiles-dir ci
+
+      - name: Lint
+        run: sqlfluff lint models tests
+
+      # CI only: overwrites the (absent) full CSVs with the small sample.
+      - name: Load CI sample into seeds
+        run: cp ci/seeds/*.csv seeds/
+
+      - name: Build (seeds, models, snapshots, tests)
+        run: dbt build --profiles-dir ci --target ci
