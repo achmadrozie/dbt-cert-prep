@@ -193,71 +193,86 @@ Analogy (a form): the contract makes sure there is an "age" field that holds a n
 
 ---
 
-## 2 · Versions and deprecation
+## 2 · Versions and deprecation (TRANSITIONING SMOOTHLY)
 
-Moved here from the M2 folder; first written from my `fact_order` v1/v2 experiment. Tags in 2.1-2.8: **Fact** = observed in my own runs; **Docs (recall)** = from memory of the docs, not re-checked.
+Tags: **Fact** = observed in my own runs; **Observed** and **Docs** as defined at the top.
 
 ### 2.1 The problem it solves
 
-A model has consumers (dashboards, other teams, downstream models). I want to make a **breaking change**: rename or drop a column, change a type, change the grain, change a metric definition. If I edit in place, every consumer breaks at once. If I create `fact_order_new` by hand, nobody knows which one is official.
+**Problem:** someone else uses my table, and I need to change it in a way that would break their query.
 
-**Model versions** let `v1` and `v2` live side by side. Consumers move one at a time, then `v1` is retired.
+**Answer:** do not change it in place. Keep the old one running, put the new one next to it, and give people time to move.
 
-Not breaking, so no versioning needed: adding a column (that is `on_schema_change`), or an internal model only I use.
+Versioning needs only three decisions:
 
-#### Example from my project
+| In plain words | In dbt | Required? | If not written |
+|---|---|---|---|
+| the old one and the new one | `v: 1`, `v: 2` | yes | there are no versions |
+| which one is official | `latest_version` | optional (**Docs**) | the **highest** number |
+| when people should be gone from the old one | `deprecation_date` | optional | nobody is told to leave |
 
-`fact_order.sales_amount` is used by a mart (`SUM(sales_amount)`), a BI dashboard ("Total Sales") and ad-hoc analyst queries. I want to rename it to `gross_sales_amount`.
+`deprecation_date` is **only a label**: it warns, it does not drop or block anything. After the date the old table can still be queried; removing it is manual.
 
-- **Edit in place:** all three break at the same moment ("column not found"). None of them had time to change.
-- **`fact_order_new` by hand:** nothing breaks, but there are two similar tables. Nobody knows which is official or when the old one dies.
-- **Model versions:** v1 keeps `sales_amount`, v2 has `gross_sales_amount`. One name, a marked latest, and consumers migrate one by one.
+**Trap:** adding `v: 2` without `latest_version` makes v2 official at once.
 
-| Change | Old consumers |
+Example (hypothetical marts): v2 renames `sales_amount` to `gross_sales_amount`, and marts A and B still select `sales_amount`.
+
+| Mart | It calls | No `latest_version` | `latest_version: 1` |
+|---|---|---|---|
+| A | `ref('fact_order')` | gets v2, **breaks** | gets v1, safe |
+| B | `ref('fact_order', v=1)` | gets v1, safe | gets v1, safe |
+
+Release safely: keep `latest_version: 1`, let mart A move or pin, then switch to `2`.
+
+### 2.2 When to use a new version
+
+| Situation | New version? |
 |---|---|
-| Rename or drop a column | break with an error |
-| Change a type | can break |
-| Change grain or metric definition | **no error, numbers silently change** (the most dangerous) |
-| Add a column | safe |
+| Rename or drop a column that others use | **yes** |
+| Change a type, grain or metric definition | **yes** |
+| Consumers need time to migrate | **yes** |
+| Add a column | no |
+| Internal model, or all consumers change in the same PR | no |
+| Same result, different build (table to incremental) | no (my current v2 is this: practice only) |
 
-#### Versioning = gradual sunset
+### 2.3 Syntax
 
-It is a deprecation lifecycle, not just a version label. It gives three things:
-- **Coexistence:** v1 and v2 live together, so nothing breaks suddenly.
-- **Official marker:** `latest_version` says which one is recommended.
-- **Deadline:** `deprecation_date` on v1 warns consumers still using it. **Docs (recall)**, not tested.
-
-Without the deadline it is only "two versions forever".
-
-Limit: versioning only covers the dbt side. A BI dashboard outside dbt is not notified automatically. Telling its users is a team process, not a dbt feature.
-
-### 2.2 Mental model
-
-One model name, many versions. The name is shared; the version is the extra address.
-
-```
-fact_order
- ├─ v1  -> file fact_order_v1.sql   -> table fact_order_v1
- └─ v2  -> file fact_order_v2.sql   -> table fact_order   (latest)
-```
-
-`ref('fact_order')` with no version goes to `latest_version`. `ref('fact_order', v=1)` pins a version.
-
-### 2.3 Config (what I ran)
-
-In the model's properties `.yml`, `versions:` is a key **inside** the model (same level as `name:`), not a new list item:
+**Basic** (enough for most cases):
 
 ```yaml
 models:
+  - name: fact_order          # what ref() uses
+    latest_version: 1         # the official one; if omitted: highest v
+    versions:                 # a key inside the model, NOT "- versions:"
+      - v: 1
+        deprecation_date: 2027-01-31
+      - v: 2
+```
+
+By default the files are `fact_order_v1.sql` and `fact_order_v2.sql`, and the tables have the same names. Change that only if needed: `defined_in` (file), `config: alias:` (table).
+
+What I have now in `fact_order.yml`:
+
+```yaml
   - name: fact_order
     latest_version: 2
-    columns: ...            # shared by all versions
     versions:
       - v: 2
-        defined_in: fact_order_v2   # SQL file name, no .sql
+        defined_in: fact_order_v2
         config:
-          alias: fact_order         # warehouse table name
-      - v: 1                        # defined_in omitted: default is fact_order_v1.sql
+          alias: fact_order
+      - v: 1                        # file fact_order_v1.sql, table fact_order_v1
+```
+
+** (OPTIONAL, Contract related) Add this only when a column differs** (here, a rename). **Observed:** builds with an enforced contract.
+
+```yaml
+      - v: 2
+        columns:
+          - include: all
+            exclude: [sales_amount]
+          - name: gross_sales_amount
+            data_type: decimal(18,2)    # needed when the contract is enforced
 ```
 
 ### 2.4 Three names, three jobs
@@ -273,73 +288,67 @@ Easy to mix up. This was most of my debugging.
 - **Fact:** `ref('fact_order_v2')` fails once versioning is on. `fact_order_v2` is a file name, not a model name.
 - **Fact:** `dbt build -s fact_order_old` matched nothing (that was my first name for the v1 file). `-s` uses `fact_order_v1` or `fact_order.v1`.
 - **Fact:** `fact_order_v2` worked as a selector only because the file name happened to equal the version name.
-- **Docs (recall):** `v` can be a number or a string, but the `_v<value>` pattern in default names and selectors stays.
+- **Docs (recall, not re-checked):** `v` can be a number or a string, but the `_v<value>` pattern in default names and selectors stays.
 - Simplest setup (what I use now): name files `fact_order_v1.sql` and `fact_order_v2.sql`, and skip `defined_in`.
 
-### 2.5 Gotchas I hit
+### 2.5 What I learned on `fact_order_item`
 
-1. **`versions:` indentation.** Writing `- versions:` made a second list item under `models`. Error: `list element for 'models' does not have a name attribute`.
-2. **`latest_version` needs a `versions:` block.** Only `latest_version: 2` is not enough.
-3. **`defined_in` must match the real file name.** I renamed `fact_order.sql` and the yml still pointed at the old name. Warning: `Did not find matching node for patch with name 'fact_order'`.
-4. **Analyses and tests with old refs break parse.** Plain `ref('fact_order')` now means the latest version. Compare old vs new with `v=1` and `v=2`.
-5. **Stale parse cache.** After removing versioning, dbt said `fact_order.v2 ... is not in the graph`. Fix: `dbt --no-partial-parse parse`.
-6. **A new alias means a new table.** v1 now builds to `fact_order_v1`, which did not exist. Audit macros then saw no columns and `dbt show` failed with `syntax error at or near "limit"`. Build the version first.
-7. **Reusing an alias reuses the table.** v2 (incremental) with `alias: fact_order` merged into the old `fact_order` table. For a clean build: `dbt build -s fact_order_v2 --full-refresh`.
+The change: v2 renames `line_amount_delta` to `amount_delta`.
 
-### 2.6 When to use, when not to
+**1. Rename the file and add `versions:` together.**
+Renaming alone broke every `ref()`: `depends on a node named 'fact_order_item' which was not found`.
 
-**Use when**
-- The model is shared (BI, other teams, other projects) and the change is breaking.
-- Consumers need a migration window.
-- Paired with governance: contracts and `public` access (M4). **Docs (recall)**
+**2. Move consumers before raising `latest_version`.**
+Raising it first broke the mart: no column `line_amount_delta`.
 
-**Do not use when**
-- The model is internal, or all consumers can change in one PR.
-- The change is additive (new column).
-- The result is identical and only the build changes. My `fact_order` v2 (table to incremental, same data) is this case. In production I would just change the materialization. Here it is a practice run.
+**3. Move `latest_version` and `alias` together.**
+With only `latest_version` moved, the plain table still showed the old column.
 
-### 2.7 Retiring a version
+**4. Clean up old tables yourself.**
+`fact_order_item_v2` stayed behind after the alias moved, and was no longer updated.
 
-- **Docs (recall):** `deprecation_date` on the old version produces warnings for consumers still using it.
-- Migrate consumers to `v=2` one by one, then delete v1 and its entry in `versions:`.
-- **Docs:** it does not delete the model or its table.
-- **Observed:** a past date gives a warning at parse, not an error.
-- **Unknown:** how `include`/`exclude` of columns per version behaves on this project. Not tested.
+### 2.6 Retiring a version
 
-### 2.8 Check-yourself
-
-1. What does `ref('fact_order')` return when `latest_version: 2`? What about `ref('fact_order', v=1)`?
-2. Name the three names (model, file, table) and where each is set.
-3. Why would `-s` with a file name like `fact_order_old` match nothing?
-4. Is adding a column a reason to create v2?
-5. v2 uses `alias: fact_order` and v1 has no alias. Which table does v1 build to?
-
-### 2.9 Added for M4: contracts and versions
-
-**Different columns per version** (**Docs**, not tested here). Shared columns stay at the top; each version says what differs:
+**Example** (`fact_order_item`):
 
 ```yaml
+# step 1: announce the deadline (done)
+latest_version: 2
 versions:
-  - v: 2
-    columns:
-      - include: all
-        exclude: [old_name]
-      - name: new_name
-        data_type: varchar      # needed when the contract is enforced
   - v: 1
+    defined_in: fact_order_item_v1
+    deprecation_date: 2027-01-31
+  - v: 2
+    config: {alias: fact_order_item}
 ```
 
-**A breaking change** (**Docs**) is: removing a column, changing a type, removing or changing a constraint, or removing a contracted model. Adding a column is not breaking.
+Step 2: everyone still on `ref('fact_order_item', v=1)` moves to v2.
 
-**Who detects it.** Only a comparison with an earlier manifest (`--state`).
+```yaml
+# step 3: after everyone moved, remove v1 and delete fact_order_item_v1.sql
+latest_version: 2
+versions:
+  - v: 2
+    config: {alias: fact_order_item}
+```
+
+Step 4: `DROP TABLE dev.fact_order_item_v1;` (and in every other schema that has it).
+
+- **Observed:** a reference to a version with a future date warns: `Found a reference to ... slated for deprecation on ...`.
+- **Observed:** with nobody referencing v1, `dbt parse` showed no warning.
+- **Docs:** dbt never drops the old table; that is manual.
+
+### 2.7 Breaking changes and contracts
+
+**Breaking** (**Docs**): removing a column, changing a type, removing or changing a constraint, or removing a contracted model. Adding a column is not.
+
+Only a comparison with an earlier manifest (`--state`) detects it:
 
 | Case: type changed in **both** SQL and YAML | Result (**Observed**) |
 |---|---|
 | No `--state` | builds fine, nobody notices |
 | `--state`, model **not** versioned | warning only |
 | `--state`, model **versioned** | error: "Breaking change to contract" |
-
-So a contract alone catches "SQL no longer matches YAML". It does not catch someone changing both.
 
 ---
 
