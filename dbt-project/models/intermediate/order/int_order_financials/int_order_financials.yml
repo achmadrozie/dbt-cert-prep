@@ -2,6 +2,9 @@ version: 2
 models:
 - name: int_order_financials
   description: '{{ doc("int_order_financials") }}'
+  config:
+    group: product_platform
+    access: private
   columns:
   - name: order_id
     data_tests:
